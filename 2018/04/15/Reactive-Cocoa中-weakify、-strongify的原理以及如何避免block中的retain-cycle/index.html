@@ -87,12 +87,10 @@
 <meta property="og:site_name" content="崔岚清的个人博客">
 <meta property="og:description" content="1、block中的循环引用在iOS开发中，如果self持有block，在block中对self进行显式或隐式的引用，都会出现retain cycle而导致内存泄漏，比如： 123456self.someBlock = ^&amp;#123;    // 显式引用self    [self doSomething];    // 隐式引用self，_someProperty为self的某个属性    _so">
 <meta property="og:locale" content="default">
-<meta property="og:image" content="http://yoursite.com/2018/04/15/Reactive-Cocoa中-weakify、-strongify的原理以及如何避免block中的retain-cycle/2018/04/15/Reactive-Cocoa中-weakify、-strongify的原理以及如何避免block中的retain-cycle/image-20180415161622807.png">
-<meta property="og:updated_time" content="2018-04-15T14:31:34.018Z">
+<meta property="og:updated_time" content="2018-04-15T14:38:01.347Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="RAC中@weakify、@strongify的原理以及如何避免block中的retain cycle">
 <meta name="twitter:description" content="1、block中的循环引用在iOS开发中，如果self持有block，在block中对self进行显式或隐式的引用，都会出现retain cycle而导致内存泄漏，比如： 123456self.someBlock = ^&amp;#123;    // 显式引用self    [self doSomething];    // 隐式引用self，_someProperty为self的某个属性    _so">
-<meta name="twitter:image" content="http://yoursite.com/2018/04/15/Reactive-Cocoa中-weakify、-strongify的原理以及如何避免block中的retain-cycle/2018/04/15/Reactive-Cocoa中-weakify、-strongify的原理以及如何避免block中的retain-cycle/image-20180415161622807.png">
 
 
 
@@ -311,7 +309,7 @@
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">@weakify(self);</span><br><span class="line">self.someBlock = @&#123;</span><br><span class="line">    @strongify(self);</span><br><span class="line">    [self doSomething];</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>是不是很神奇，self还可以原封不动地使用，下面我们看看@weakify(self)和@strongify(self)这两个宏究竟有何神奇之处。</p>
 <h3 id="3、-weakify-self-和-strongify-self-的作用"><a href="#3、-weakify-self-和-strongify-self-的作用" class="headerlink" title="3、@weakify(self)和@strongify(self)的作用"></a>3、@weakify(self)和@strongify(self)的作用</h3><p>首先看下@weakify(self)和@strongify(self)究竟做了哪些事情，打开Xcode看看进行宏替换后的代码：</p>
-<img src="/2018/04/15/Reactive-Cocoa中-weakify、-strongify的原理以及如何避免block中的retain-cycle/2018/04/15/Reactive-Cocoa中-weakify、-strongify的原理以及如何避免block中的retain-cycle/image-20180415161622807.png" title="preprocess代码对比">
+
 <p>​    ①、self_weak_部分与我们通常的写法一致：外部定义self的弱引用weakSelf，然后在block内部强引用这个weakSelf防止其提前释放；</p>
 <p>​    ②、@autoreleasepool{}: weakify连同它前面的@一起组合成了@autoreleasepool{},虽然这个autoreleasepool啥事都没做。。。（后面进行分析）</p>
 <p>​    ③、 <code>__attribute__((objc_ownership(weak)))</code> 这部分代码就是<code>__weak</code>被编译器替换后的结果（weakify这个宏的替换结果中包含<code>__weak</code>）</p>
