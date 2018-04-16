@@ -68,7 +68,7 @@
 
 
 
-  <meta name="keywords" content="Hexo, NexT" />
+  <meta name="keywords" content="Objective-C," />
 
 
 
@@ -80,19 +80,19 @@
 
 
 <meta name="description" content="1、block中的循环引用在iOS开发中，如果self持有block，在block中对self进行显式或隐式的引用，都会出现retain cycle而导致内存泄漏，比如： 123456self.someBlock = ^&amp;#123;    // 显式引用self    [self doSomething];    // 隐式引用self，_someProperty为self的某个属性    _so">
-<meta name="keywords" content="iOS、前端">
+<meta name="keywords" content="Objective-C">
 <meta property="og:type" content="article">
 <meta property="og:title" content="RAC中@weakify、@strongify的原理以及如何避免block中的retain cycle">
-<meta property="og:url" content="http://yoursite.com/2018/04/15/Reactive-Cocoa中-weakify、-strongify的原理以及如何避免block中的retain-cycle/index.html">
+<meta property="og:url" content="http://yoursite.com/2018/04/14/Reactive-Cocoa中-weakify、-strongify的原理以及如何避免block中的retain-cycle/index.html">
 <meta property="og:site_name" content="崔岚清的个人博客">
 <meta property="og:description" content="1、block中的循环引用在iOS开发中，如果self持有block，在block中对self进行显式或隐式的引用，都会出现retain cycle而导致内存泄漏，比如： 123456self.someBlock = ^&amp;#123;    // 显式引用self    [self doSomething];    // 隐式引用self，_someProperty为self的某个属性    _so">
 <meta property="og:locale" content="default">
-<meta property="og:image" content="http://yoursite.com/2018/04/15/Reactive-Cocoa中-weakify、-strongify的原理以及如何避免block中的retain-cycle/image-20180415161622807.png">
-<meta property="og:updated_time" content="2018-04-15T14:50:24.795Z">
+<meta property="og:image" content="http://yoursite.com/2018/04/14/Reactive-Cocoa中-weakify、-strongify的原理以及如何避免block中的retain-cycle/image-20180415161622807.png">
+<meta property="og:updated_time" content="2018-04-16T08:42:35.231Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="RAC中@weakify、@strongify的原理以及如何避免block中的retain cycle">
 <meta name="twitter:description" content="1、block中的循环引用在iOS开发中，如果self持有block，在block中对self进行显式或隐式的引用，都会出现retain cycle而导致内存泄漏，比如： 123456self.someBlock = ^&amp;#123;    // 显式引用self    [self doSomething];    // 隐式引用self，_someProperty为self的某个属性    _so">
-<meta name="twitter:image" content="http://yoursite.com/2018/04/15/Reactive-Cocoa中-weakify、-strongify的原理以及如何避免block中的retain-cycle/image-20180415161622807.png">
+<meta name="twitter:image" content="http://yoursite.com/2018/04/14/Reactive-Cocoa中-weakify、-strongify的原理以及如何避免block中的retain-cycle/image-20180415161622807.png">
 
 
 
@@ -122,7 +122,7 @@
 
 
 
-  <link rel="canonical" href="http://yoursite.com/2018/04/15/Reactive-Cocoa中-weakify、-strongify的原理以及如何避免block中的retain-cycle/"/>
+  <link rel="canonical" href="http://yoursite.com/2018/04/14/Reactive-Cocoa中-weakify、-strongify的原理以及如何避免block中的retain-cycle/"/>
 
 
 
@@ -186,19 +186,39 @@
         <li class="menu-item menu-item-home">
           <a href="/" rel="section">
             
-              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
             
             Home
           </a>
         </li>
       
         
-        <li class="menu-item menu-item-archives">
-          <a href="/archives/" rel="section">
+        <li class="menu-item menu-item-categories">
+          <a href="/categories" rel="section">
             
-              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
+            
+            Categories
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
             
             Archives
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
+            
+            Tags
           </a>
         </li>
       
@@ -235,7 +255,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/15/Reactive-Cocoa中-weakify、-strongify的原理以及如何避免block中的retain-cycle/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/14/Reactive-Cocoa中-weakify、-strongify的原理以及如何避免block中的retain-cycle/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="Cui Lanqing">
@@ -264,8 +284,8 @@
               
                 <span class="post-meta-item-text">Posted on</span>
               
-              <time title="Post created" itemprop="dateCreated datePublished" datetime="2018-04-15T22:24:32+08:00">
-                2018-04-15
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2018-04-14T21:33:20+08:00">
+                2018-04-14
               </time>
             
 
@@ -274,6 +294,28 @@
             
           </span>
 
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">In</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/iOS开发/" itemprop="url" rel="index">
+                    <span itemprop="name">iOS开发</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
           
 
           
@@ -311,7 +353,7 @@
 <figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">@weakify(<span class="keyword">self</span>);</span><br><span class="line"><span class="keyword">self</span>.someBlock = @&#123;</span><br><span class="line">    @strongify(<span class="keyword">self</span>);</span><br><span class="line">    [<span class="keyword">self</span> doSomething];</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>是不是很神奇，self还可以原封不动地使用，下面我们看看@weakify(self)和@strongify(self)这两个宏究竟有何神奇之处。</p>
 <h3 id="3、-weakify-self-和-strongify-self-的作用"><a href="#3、-weakify-self-和-strongify-self-的作用" class="headerlink" title="3、@weakify(self)和@strongify(self)的作用"></a>3、@weakify(self)和@strongify(self)的作用</h3><p>首先看下@weakify(self)和@strongify(self)究竟做了哪些事情，打开Xcode看看进行宏替换后的代码：</p>
-<p><img src="/2018/04/15/Reactive-Cocoa中-weakify、-strongify的原理以及如何避免block中的retain-cycle/image-20180415161622807.png" alt="preprocess代码对比"></p>
+<p><img src="/2018/04/14/Reactive-Cocoa中-weakify、-strongify的原理以及如何避免block中的retain-cycle/image-20180415161622807.png" alt="preprocess代码对比"></p>
 <p>​    ①、self_weak_部分与我们通常的写法一致：外部定义self的弱引用weakSelf，然后在block内部强引用这个weakSelf防止其提前释放；</p>
 <p>​    ②、@autoreleasepool{}: weakify连同它前面的@一起组合成了@autoreleasepool{},虽然这个autoreleasepool啥事都没做。。。（后面进行分析）</p>
 <p>​    ③、 <code>__attribute__((objc_ownership(weak)))</code> 这部分代码就是<code>__weak</code>被编译器替换后的结果（weakify这个宏的替换结果中包含<code>__weak</code>）</p>
@@ -360,6 +402,12 @@
     
 
     <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Objective-C/" rel="tag"># Objective-C</a>
+          
+        </div>
       
 
       
@@ -437,7 +485,7 @@
             
               <div class="site-state-item site-state-posts">
               
-                <a href="/archives/">
+                <a href="/archives">
               
                   <span class="site-state-item-count">1</span>
                   <span class="site-state-item-name">posts</span>
@@ -446,7 +494,25 @@
             
 
             
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">1</span>
+                  <span class="site-state-item-name">categories</span>
+                </a>
+              </div>
+            
 
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                
+                  <span class="site-state-item-count">1</span>
+                  <span class="site-state-item-name">tags</span>
+                
+              </div>
             
 
           </nav>
