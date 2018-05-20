@@ -68,7 +68,7 @@
 
 
 
-  <meta name="keywords" content="Hexo, NexT" />
+  <meta name="keywords" content="Objective-C, UIKit, 性能优化," />
 
 
 
@@ -79,17 +79,21 @@
 
 
 
-<meta name="description" content="一枚有梦想的程序猿">
-<meta name="keywords" content="iOS、前端">
-<meta property="og:type" content="website">
-<meta property="og:title" content="崔岚清的个人博客">
-<meta property="og:url" content="http://yoursite.com/index.html">
+<meta name="description" content="###一、前言前段时间接到了一个页面优化任务，一个选座的页面，要求峰值支持100*100个座位，并提高页面滑动的流畅度、内存占用率和加载速度等指标前前后后做了一个月左右的时间，这里总结一下优化经验以供参考。 ###二、分析问题#####1、该页面的问题所在之前该页面的是由一系列UIButton结合drawRect实现，在从服务器拉取到数据后，计算出每个座位的frame并在相应的位置创建一个butt">
+<meta name="keywords" content="Objective-C, UIKit, 性能优化">
+<meta property="og:type" content="article">
+<meta property="og:title" content="iOS页面优化经验总结">
+<meta property="og:url" content="http://yoursite.com/2018/05/11/iOS页面优化经验总结/index.html">
 <meta property="og:site_name" content="崔岚清的个人博客">
-<meta property="og:description" content="一枚有梦想的程序猿">
+<meta property="og:description" content="###一、前言前段时间接到了一个页面优化任务，一个选座的页面，要求峰值支持100*100个座位，并提高页面滑动的流畅度、内存占用率和加载速度等指标前前后后做了一个月左右的时间，这里总结一下优化经验以供参考。 ###二、分析问题#####1、该页面的问题所在之前该页面的是由一系列UIButton结合drawRect实现，在从服务器拉取到数据后，计算出每个座位的frame并在相应的位置创建一个butt">
 <meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="http://yoursite.com/2018/05/11/iOS页面优化经验总结/1.png">
+<meta property="og:image" content="http://yoursite.com/2018/05/11/iOS页面优化经验总结/2.png">
+<meta property="og:updated_time" content="2018-05-20T02:31:32.585Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="崔岚清的个人博客">
-<meta name="twitter:description" content="一枚有梦想的程序猿">
+<meta name="twitter:title" content="iOS页面优化经验总结">
+<meta name="twitter:description" content="###一、前言前段时间接到了一个页面优化任务，一个选座的页面，要求峰值支持100*100个座位，并提高页面滑动的流畅度、内存占用率和加载速度等指标前前后后做了一个月左右的时间，这里总结一下优化经验以供参考。 ###二、分析问题#####1、该页面的问题所在之前该页面的是由一系列UIButton结合drawRect实现，在从服务器拉取到数据后，计算出每个座位的frame并在相应的位置创建一个butt">
+<meta name="twitter:image" content="http://yoursite.com/2018/05/11/iOS页面优化经验总结/1.png">
 
 
 
@@ -119,13 +123,13 @@
 
 
 
-  <link rel="canonical" href="http://yoursite.com/"/>
+  <link rel="canonical" href="http://yoursite.com/2018/05/11/iOS页面优化经验总结/"/>
 
 
 
 
 
-  <title>崔岚清的个人博客</title>
+  <title>iOS页面优化经验总结 | 崔岚清的个人博客</title>
   
 
 
@@ -144,8 +148,7 @@
     
   
 
-  <div class="container sidebar-position-left 
-  page-home">
+  <div class="container sidebar-position-left page-post-detail">
     <div class="headband"></div>
 
     <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
@@ -238,9 +241,9 @@
         <div class="content-wrap">
           <div id="content" class="content">
             
-  <section id="posts" class="posts-expand">
+
+  <div id="posts" class="posts-expand">
     
-      
 
   
 
@@ -270,9 +273,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/05/11/iOS页面优化经验总结/" itemprop="url">iOS页面优化经验总结</a></h1>
+          <h1 class="post-title" itemprop="name headline">iOS页面优化经验总结</h1>
         
 
         <div class="post-meta">
@@ -344,9 +345,7 @@
       
 
       
-        
-          
-            <h2 id="一、前言"><a href="#一、前言" class="headerlink" title="###一、前言"></a>###一、前言</h2><p>前段时间接到了一个页面优化任务，一个选座的页面，要求峰值支持100*100个座位，并提高页面滑动的流畅度、内存占用率和加载速度等指标<br><img src="/2018/05/11/iOS页面优化经验总结/1.png" alt="页面样式"><br>前前后后做了一个月左右的时间，这里总结一下优化经验以供参考。</p>
+        <h2 id="一、前言"><a href="#一、前言" class="headerlink" title="###一、前言"></a>###一、前言</h2><p>前段时间接到了一个页面优化任务，一个选座的页面，要求峰值支持100*100个座位，并提高页面滑动的流畅度、内存占用率和加载速度等指标<br><img src="/2018/05/11/iOS页面优化经验总结/1.png" alt="页面样式"><br>前前后后做了一个月左右的时间，这里总结一下优化经验以供参考。</p>
 <h2 id="二、分析问题"><a href="#二、分析问题" class="headerlink" title="###二、分析问题"></a>###二、分析问题</h2><p>#####1、该页面的问题所在<br>之前该页面的是由一系列UIButton结合drawRect实现，在从服务器拉取到数据后，计算出每个座位的frame并在相应的位置创建一个button代表该座位，所有座位加载完成后在左上角显示整体座位的缩略图。</p>
 <p>这个过程有以下问题：</p>
 <ol>
@@ -483,8 +482,6 @@
 </table>
 <p>优化前，进入选座页面后，数据加载完后要等待3s左右才能进行操作，在此期间App卡住且不响应任何用户操作；<br>优化后，进入选座页面后，数据加载完后可以立即响应用户操作，不存在卡顿时间。</p>
 
-          
-        
       
     </div>
     
@@ -499,199 +496,36 @@
 
     <footer class="post-footer">
       
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/14/Reactive-Cocoa中-weakify、-strongify的原理以及如何避免block中的retain-cycle/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Cui Lanqing">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="崔岚清的个人博客">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/04/14/Reactive-Cocoa中-weakify、-strongify的原理以及如何避免block中的retain-cycle/" itemprop="url">RAC中@weakify、@strongify的原理以及如何避免block中的retain cycle</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-04-14T21:33:20+08:00">
-                2018-04-14
-              </time>
-            
-
-            
-
-            
-          </span>
-
+        <div class="post-tags">
           
-            <span class="post-category" >
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/iOS开发/" itemprop="url" rel="index">
-                    <span itemprop="name">iOS开发</span>
-                  </a>
-                </span>
-
-                
-                
-              
-            </span>
+            <a href="/tags/Objective-C-UIKit-性能优化/" rel="tag"># Objective-C, UIKit, 性能优化</a>
           
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
         </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h3 id="1、block中的循环引用"><a href="#1、block中的循环引用" class="headerlink" title="1、block中的循环引用"></a>1、block中的循环引用</h3><p>在iOS开发中，如果self持有block，在block中对self进行显式或隐式的引用，都会出现retain cycle而导致内存泄漏，比如：</p>
-<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">self</span>.someBlock = ^&#123;</span><br><span class="line">    <span class="comment">// 显式引用self</span></span><br><span class="line">    [<span class="keyword">self</span> doSomething];</span><br><span class="line">    <span class="comment">// 隐式引用self，_someProperty为self的某个属性</span></span><br><span class="line">    _someProperty = xxx;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>以前，我们是这样解决的：</p>
-<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">__<span class="keyword">weak</span> <span class="keyword">typeof</span>(<span class="keyword">self</span>) weakSelf = <span class="keyword">self</span>;</span><br><span class="line"><span class="keyword">self</span>.someBlock = ^&#123;</span><br><span class="line">    __<span class="keyword">strong</span> <span class="keyword">typeof</span>(weakSelf) strongSelf = weakSelf;</span><br><span class="line">    [<span class="keyword">self</span> doSomething];</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>在block外部使用weakSelf定义self的弱引用对象，然后在block内部对weakSelf进行一次强引用（防止执行到block块中代码的时候self被提前释放导致weakSelf为nil），由于strongSelf定义为局部变量，当其作用域结束后，strongSelf自动释放对self的强引用，从而避免了retain cycle。</p>
-<h3 id="2、优雅的解决办法"><a href="#2、优雅的解决办法" class="headerlink" title="2、优雅的解决办法"></a>2、优雅的解决办法</h3><p>上述写法虽然足够严谨而且能有效地解决问题，但是每次都要写一长串的weakSelf和strongSelf定义着实麻烦。我们先看看RAC是如何优雅地解决的：</p>
-<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">@weakify(<span class="keyword">self</span>);</span><br><span class="line"><span class="keyword">self</span>.someBlock = @&#123;</span><br><span class="line">    @strongify(<span class="keyword">self</span>);</span><br><span class="line">    [<span class="keyword">self</span> doSomething];</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>是不是很神奇，self还可以原封不动地使用，下面我们看看@weakify(self)和@strongify(self)这两个宏究竟有何神奇之处。</p>
-<h3 id="3、-weakify-self-和-strongify-self-的作用"><a href="#3、-weakify-self-和-strongify-self-的作用" class="headerlink" title="3、@weakify(self)和@strongify(self)的作用"></a>3、@weakify(self)和@strongify(self)的作用</h3><p>首先看下@weakify(self)和@strongify(self)究竟做了哪些事情，打开Xcode看看进行宏替换后的代码：</p>
-<p><img src="/2018/04/14/Reactive-Cocoa中-weakify、-strongify的原理以及如何避免block中的retain-cycle/image-20180415161622807.png" alt="preprocess代码对比"></p>
-<p>​    ①、self_weak_部分与我们通常的写法一致：外部定义self的弱引用weakSelf，然后在block内部强引用这个weakSelf防止其提前释放；</p>
-<p>​    ②、@autoreleasepool{}: weakify连同它前面的@一起组合成了@autoreleasepool{},虽然这个autoreleasepool啥事都没做。。。（后面进行分析）</p>
-<p>​    ③、 <code>__attribute__((objc_ownership(weak)))</code> 这部分代码就是<code>__weak</code>被编译器替换后的结果（weakify这个宏的替换结果中包含<code>__weak</code>）</p>
-<h4 id="4、-weakify-self-和-strongify-self-的原理"><a href="#4、-weakify-self-和-strongify-self-的原理" class="headerlink" title="4、@weakify(self)和@strongify(self)的原理"></a>4、@weakify(self)和@strongify(self)的原理</h4><p>首先，我们对@weakify(self)一层层展开：</p>
-<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#define weakify(...) \</span></span><br><span class="line">    rac_keywordify \</span><br><span class="line">    metamacro_foreach_cxt(rac_weakify_,, __<span class="keyword">weak</span>, __VA_ARGS__)</span><br></pre></td></tr></table></figure>
-<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#if DEBUG</span></span><br><span class="line"><span class="meta">#define rac_keywordify autoreleasepool &#123;&#125;</span></span><br><span class="line"><span class="meta">#else</span></span><br><span class="line"><span class="meta">#define rac_keywordify try &#123;&#125; @catch (...) &#123;&#125;</span></span><br><span class="line"><span class="meta">#endif</span></span><br></pre></td></tr></table></figure>
-<p>在宏中，<code>…</code>表示多个参数，<code>__VA_ARGS__</code>则对应相应的参数。用上述定义进行替换后，@weakify(self)等同于下面的代码：</p>
-<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">@autoreleasepool</span>&#123;&#125;</span><br><span class="line">metamacro_foreach_cxt(rac_weakify_,, __<span class="keyword">weak</span>, <span class="keyword">self</span>)</span><br></pre></td></tr></table></figure>
-<p>继续：</p>
-<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#define metamacro_foreach_cxt(MACRO, SEP, CONTEXT, ...) \</span></span><br><span class="line">        metamacro_concat(metamacro_foreach_cxt, metamacro_argcount(__VA_ARGS__))(MACRO, SEP, CONTEXT, __VA_ARGS__)</span><br></pre></td></tr></table></figure>
-<p>这里包括了几个宏：</p>
-<ul>
-<li>metamacro_concat：</li>
-</ul>
-<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#define metamacro_concat(A, B) \</span></span><br><span class="line">        metamacro_concat_(A, B)</span><br><span class="line"></span><br><span class="line"><span class="meta">#define metamacro_concat_(A, B) A ## B</span></span><br></pre></td></tr></table></figure>
-<p>​    可以看到metamacro_concat的最终转换成宏连接符<code>##</code> </p>
-<ul>
-<li>metamacro_argcount：</li>
-</ul>
-<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#define metamacro_argcount(...) \</span></span><br><span class="line">        metamacro_at(<span class="number">20</span>, __VA_ARGS__, <span class="number">20</span>, <span class="number">19</span>, <span class="number">18</span>, <span class="number">17</span>, <span class="number">16</span>, <span class="number">15</span>, <span class="number">14</span>, <span class="number">13</span>, <span class="number">12</span>, <span class="number">11</span>, <span class="number">10</span>, <span class="number">9</span>, <span class="number">8</span>, <span class="number">7</span>, <span class="number">6</span>, <span class="number">5</span>, <span class="number">4</span>, <span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>)</span><br><span class="line"> </span><br><span class="line"><span class="meta">#define metamacro_at(N, ...) \</span></span><br><span class="line">        metamacro_concat(metamacro_at, N)(__VA_ARGS__)</span><br></pre></td></tr></table></figure>
-<p>这个宏的作用是根据metamacro_argcount的参数个数，将其替换成相应的数字，比如：</p>
-<p>metamacro_argcount(self)会被替换成1, 下面一步步进行分析：</p>
-<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">首先RAC定义了如下的一些宏：</span><br><span class="line"><span class="meta">#define metamacro_at0(...) metamacro_head(__VA_ARGS__)</span></span><br><span class="line"><span class="meta">#define metamacro_at1(_0, ...) metamacro_head(__VA_ARGS__)</span></span><br><span class="line"><span class="meta">#define metamacro_at2(_0, _1, ...) metamacro_head(__VA_ARGS__)</span></span><br><span class="line"><span class="meta">#define metamacro_at3(_0, _1, _2, ...) metamacro_head(__VA_ARGS__)</span></span><br><span class="line"><span class="meta">#define metamacro_at4(_0, _1, _2, _3, ...) metamacro_head(__VA_ARGS__)</span></span><br><span class="line"><span class="meta">#define metamacro_at5(_0, _1, _2, _3, _4, ...) metamacro_head(__VA_ARGS__)</span></span><br><span class="line"><span class="meta">#define metamacro_at6(_0, _1, _2, _3, _4, _5, ...) metamacro_head(__VA_ARGS__)</span></span><br><span class="line"><span class="meta">#define metamacro_at7(_0, _1, _2, _3, _4, _5, _6, ...) metamacro_head(__VA_ARGS__)</span></span><br><span class="line"><span class="meta">#define metamacro_at8(_0, _1, _2, _3, _4, _5, _6, _7, ...) metamacro_head(__VA_ARGS__)</span></span><br><span class="line"><span class="meta">#define metamacro_at9(_0, _1, _2, _3, _4, _5, _6, _7, _8, ...) metamacro_head(__VA_ARGS__)</span></span><br><span class="line"><span class="meta">#define metamacro_at10(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, ...) metamacro_head(__VA_ARGS__)</span></span><br><span class="line"><span class="meta">#define metamacro_at11(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, ...) metamacro_head(__VA_ARGS__)</span></span><br><span class="line"><span class="meta">#define metamacro_at12(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, ...) metamacro_head(__VA_ARGS__)</span></span><br><span class="line"><span class="meta">#define metamacro_at13(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, ...) metamacro_head(__VA_ARGS__)</span></span><br><span class="line"><span class="meta">#define metamacro_at14(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, ...) metamacro_head(__VA_ARGS__)</span></span><br><span class="line"><span class="meta">#define metamacro_at15(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, ...) metamacro_head(__VA_ARGS__)</span></span><br><span class="line"><span class="meta">#define metamacro_at16(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, ...) metamacro_head(__VA_ARGS__)</span></span><br><span class="line"><span class="meta">#define metamacro_at17(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, ...) metamacro_head(__VA_ARGS__)</span></span><br><span class="line"><span class="meta">#define metamacro_at18(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, ...) metamacro_head(__VA_ARGS__)</span></span><br><span class="line"><span class="meta">#define metamacro_at19(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, ...) metamacro_head(__VA_ARGS__)</span></span><br><span class="line"><span class="meta">#define metamacro_at20(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, ...) metamacro_head(__VA_ARGS__)</span></span><br><span class="line">    </span><br><span class="line"><span class="meta">#define metamacro_head(...) \</span></span><br><span class="line">        metamacro_head_(__VA_ARGS__, <span class="number">0</span>)</span><br><span class="line"><span class="meta">#define metamacro_head_(FIRST, ...) FIRST</span></span><br><span class="line">    </span><br><span class="line"><span class="number">1</span>、metamacro_argcount(<span class="keyword">self</span>)替换成：</span><br><span class="line">	metamacro_at(<span class="number">20</span>, <span class="keyword">self</span>, <span class="number">20</span>, <span class="number">19</span>, <span class="number">18</span>, <span class="number">17</span>, <span class="number">16</span>, <span class="number">15</span>, <span class="number">14</span>, <span class="number">13</span>, <span class="number">12</span>, <span class="number">11</span>, <span class="number">10</span>, <span class="number">9</span>, <span class="number">8</span>, <span class="number">7</span>, <span class="number">6</span>, <span class="number">5</span>, <span class="number">4</span>, <span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>)</span><br><span class="line"><span class="number">2</span>、上述宏替换后：</span><br><span class="line">	metamacro_concat(metamacro_at, <span class="number">20</span>)(<span class="keyword">self</span>, <span class="number">20</span>, <span class="number">19</span>, <span class="number">18</span>, <span class="number">17</span>, <span class="number">16</span>, <span class="number">15</span>, <span class="number">14</span>, <span class="number">13</span>, <span class="number">12</span>, <span class="number">11</span>, <span class="number">10</span>, <span class="number">9</span>, <span class="number">8</span>, <span class="number">7</span>, <span class="number">6</span>, <span class="number">5</span>, <span class="number">4</span>, <span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>)</span><br><span class="line"><span class="number">3</span>、上述宏替换后：</span><br><span class="line">	metamacro_at20(<span class="keyword">self</span>, <span class="number">20</span>, <span class="number">19</span>, <span class="number">18</span>, <span class="number">17</span>, <span class="number">16</span>, <span class="number">15</span>, <span class="number">14</span>, <span class="number">13</span>, <span class="number">12</span>, <span class="number">11</span>, <span class="number">10</span>, <span class="number">9</span>, <span class="number">8</span>, <span class="number">7</span>, <span class="number">6</span>, <span class="number">5</span>, <span class="number">4</span>, <span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>)</span><br><span class="line"><span class="number">4</span>、上述宏替换后：</span><br><span class="line">    metamacro_head(<span class="number">1</span>)</span><br><span class="line"><span class="number">5</span>、上述宏替换后：</span><br><span class="line">    metamacro_head_(<span class="number">1</span>, <span class="number">0</span>)</span><br><span class="line"><span class="number">6</span>、最终替换成：<span class="number">1</span></span><br></pre></td></tr></table></figure>
-<p>将这两个宏完成替换后得到：</p>
-<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">metamacro_foreach_cxt1(rac_weakify_,, __<span class="keyword">weak</span>, <span class="keyword">self</span>)</span><br></pre></td></tr></table></figure>
-<p>RAC中还定义了从metamacro_foreach_cxt0到metamacro_foreach_cxt20的一组宏：</p>
-<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#define metamacro_foreach_cxt0(MACRO, SEP, CONTEXT)</span></span><br><span class="line"><span class="meta">#define metamacro_foreach_cxt1(MACRO, SEP, CONTEXT, _0) MACRO(0, CONTEXT, _0)</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#define metamacro_foreach_cxt2(MACRO, SEP, CONTEXT, _0, _1) \</span></span><br><span class="line">    metamacro_foreach_cxt1(MACRO, SEP, CONTEXT, _0) \</span><br><span class="line">    SEP \</span><br><span class="line">    MACRO(<span class="number">1</span>, CONTEXT, _1)</span><br><span class="line"></span><br><span class="line"><span class="meta">#define metamacro_foreach_cxt3(MACRO, SEP, CONTEXT, _0, _1, _2) \</span></span><br><span class="line">    metamacro_foreach_cxt2(MACRO, SEP, CONTEXT, _0, _1) \</span><br><span class="line">    SEP \</span><br><span class="line">    MACRO(<span class="number">2</span>, CONTEXT, _2)</span><br><span class="line"></span><br><span class="line"><span class="meta">#define metamacro_foreach_cxt4(MACRO, SEP, CONTEXT, _0, _1, _2, _3) \</span></span><br><span class="line">    metamacro_foreach_cxt3(MACRO, SEP, CONTEXT, _0, _1, _2) \</span><br><span class="line">    SEP \</span><br><span class="line">    MACRO(<span class="number">3</span>, CONTEXT, _3)</span><br><span class="line">......</span><br><span class="line"><span class="meta">#define metamacro_foreach_cxt20(MACRO, SEP, CONTEXT, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19) \</span></span><br><span class="line">    metamacro_foreach_cxt19(MACRO, SEP, CONTEXT, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18) \</span><br><span class="line">    SEP \</span><br><span class="line">    MACRO(<span class="number">19</span>, CONTEXT, _19)</span><br></pre></td></tr></table></figure>
-<p>将metamacro_foreach_cxt1替换后得到：</p>
-<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">rac_weakify(<span class="number">0</span>,__<span class="keyword">weak</span>,<span class="keyword">self</span>)</span><br><span class="line">    </span><br><span class="line">rac_weakify的定义如下：</span><br><span class="line"><span class="meta">#define rac_weakify_(INDEX, CONTEXT, VAR) \</span></span><br><span class="line">    CONTEXT __typeof__(VAR) metamacro_concat(VAR, _weak_) = (VAR);</span><br></pre></td></tr></table></figure>
-<p>继续根据rac_weakify的定义替换后得到：</p>
-<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">__<span class="keyword">weak</span> __typeof__(<span class="keyword">self</span>) self_weak_ = (<span class="keyword">self</span>);</span><br><span class="line"></span><br><span class="line">@weakify(<span class="keyword">self</span>)的完整形式：</span><br><span class="line"><span class="keyword">@autoreleasepool</span>&#123;&#125;</span><br><span class="line">__<span class="keyword">weak</span> __typeof__(<span class="keyword">self</span>) self_weak_ = (<span class="keyword">self</span>);</span><br></pre></td></tr></table></figure>
-<p>大功告成！</p>
-<p>同理，@strongify(self)这个宏最终展开成以下形式:</p>
-<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">__<span class="keyword">strong</span> __typeof__(<span class="keyword">self</span>) <span class="keyword">self</span> = self_weak_;</span><br></pre></td></tr></table></figure>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
       
 
       
       
-        <div class="post-eof"></div>
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2018/04/14/Reactive-Cocoa中-weakify、-strongify的原理以及如何避免block中的retain-cycle/" rel="next" title="RAC中@weakify、@strongify的原理以及如何避免block中的retain cycle">
+                <i class="fa fa-chevron-left"></i> RAC中@weakify、@strongify的原理以及如何避免block中的retain cycle
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
       
     </footer>
   </div>
@@ -701,10 +535,11 @@
   </article>
 
 
-    
-  </section>
 
-  
+    <div class="post-spread">
+      
+    </div>
+  </div>
 
 
           </div>
@@ -712,6 +547,10 @@
 
 
           
+
+  
+
+
 
         </div>
         
@@ -732,8 +571,17 @@
       
 
       
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
 
-      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+      <section class="site-overview-wrap sidebar-panel">
         <div class="site-overview">
           <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
             
@@ -793,6 +641,22 @@
         </div>
       </section>
 
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#一、前言"><span class="nav-number">1.</span> <span class="nav-text">###一、前言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#二、分析问题"><span class="nav-number">2.</span> <span class="nav-text">###二、分析问题</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#三、准备知识"><span class="nav-number">3.</span> <span class="nav-text">###三、准备知识</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#1、异步计算并缓存布局"><span class="nav-number">3.0.0.0.1.</span> <span class="nav-text">1、异步计算并缓存布局</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#2、减少视图层级、使用轻量级视图，异步绘制"><span class="nav-number">3.0.0.0.2.</span> <span class="nav-text">2、减少视图层级、使用轻量级视图，异步绘制</span></a></li></ol></li></ol></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
       
 
       
@@ -946,6 +810,10 @@
 
 
   
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
 
   
 
