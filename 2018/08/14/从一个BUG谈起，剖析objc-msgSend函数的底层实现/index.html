@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next pisces use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Objective-C, Runtime," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="一、引出问题 前段时间开发FLEX+Relative库（使用Category和Runtime实现将FLEX库扩展出可以查看UIView相对间距的功能）。开发完成后遇到了一个奇怪的BUG，模拟器与真机调试时行为不一致，模拟器上可以正常实现预期功能，但是在真机上却出现问题：程序展示的视图与实际选中的视图不一致。先看问题代码： 123456789101112131415- (void)updateRel">
+<meta name="keywords" content="Objective-C, Runtime">
+<meta property="og:type" content="article">
+<meta property="og:title" content="从一个BUG谈起，剖析objc_msgSend函数的底层实现">
+<meta property="og:url" content="http://yoursite.com/2018/08/14/从一个BUG谈起，剖析objc-msgSend函数的底层实现/index.html">
+<meta property="og:site_name" content="崔岚清的个人博客">
+<meta property="og:description" content="一、引出问题 前段时间开发FLEX+Relative库（使用Category和Runtime实现将FLEX库扩展出可以查看UIView相对间距的功能）。开发完成后遇到了一个奇怪的BUG，模拟器与真机调试时行为不一致，模拟器上可以正常实现预期功能，但是在真机上却出现问题：程序展示的视图与实际选中的视图不一致。先看问题代码： 123456789101112131415- (void)updateRel">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="http://yoursite.com/2018/08/14/从一个BUG谈起，剖析objc-msgSend函数的底层实现/2.jpeg">
+<meta property="og:image" content="http://yoursite.com/2018/08/14/从一个BUG谈起，剖析objc-msgSend函数的底层实现/1.jpeg">
+<meta property="og:updated_time" content="2018-08-17T02:47:28.088Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="从一个BUG谈起，剖析objc_msgSend函数的底层实现">
+<meta name="twitter:description" content="一、引出问题 前段时间开发FLEX+Relative库（使用Category和Runtime实现将FLEX库扩展出可以查看UIView相对间距的功能）。开发完成后遇到了一个奇怪的BUG，模拟器与真机调试时行为不一致，模拟器上可以正常实现预期功能，但是在真机上却出现问题：程序展示的视图与实际选中的视图不一致。先看问题代码： 123456789101112131415- (void)updateRel">
+<meta name="twitter:image" content="http://yoursite.com/2018/08/14/从一个BUG谈起，剖析objc-msgSend函数的底层实现/2.jpeg">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2018/08/14/从一个BUG谈起，剖析objc-msgSend函数的底层实现/"/>
+
+
+
+
+
+  <title>从一个BUG谈起，剖析objc_msgSend函数的底层实现 | 崔岚清的个人博客</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">崔岚清的个人博客</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">集跬步至千里，积小流成江海</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/14/从一个BUG谈起，剖析objc-msgSend函数的底层实现/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Cui Lanqing">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="崔岚清的个人博客">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">从一个BUG谈起，剖析objc_msgSend函数的底层实现</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-08-14T19:46:12+08:00">
+                2018-08-14
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/iOS开发/" itemprop="url" rel="index">
+                    <span itemprop="name">iOS开发</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h3 id="一、引出问题"><a href="#一、引出问题" class="headerlink" title="一、引出问题"></a>一、引出问题</h3><hr>
+<p>前段时间开发FLEX+Relative库（使用Category和Runtime实现将<a href="https://github.com/Flipboard/FLEX" target="_blank" rel="noopener">FLEX</a>库扩展出可以查看UIView相对间距的功能）。开发完成后遇到了一个奇怪的BUG，模拟器与真机调试时行为不一致，模拟器上可以正常实现预期功能，但是在真机上却出现问题：程序展示的视图与实际选中的视图不一致。先看问题代码：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">- (<span class="keyword">void</span>)updateRelativeViewsForSelectionPoint:(<span class="built_in">CGPoint</span>)selectionPointInWindow &#123;</span><br><span class="line">    [<span class="keyword">self</span> removeAndClearRelativeLines];</span><br><span class="line">    <span class="built_in">UIView</span> *selectedView = objc_msgSend(<span class="keyword">self</span>, <span class="keyword">@selector</span>(viewForSelectionAtPoint:), selectionPointInWindow);</span><br><span class="line">    <span class="keyword">if</span> ([<span class="keyword">self</span>.relativeViews containsObject:selectedView]) &#123;</span><br><span class="line">        [<span class="keyword">self</span>.relativeViews removeObject:selectedView];</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        [<span class="keyword">self</span>.relativeViews addObject:selectedView];</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (<span class="keyword">self</span>.relativeViews.count &gt; <span class="number">2</span>) &#123;</span><br><span class="line">        [<span class="keyword">self</span>.relativeViews removeObjectAtIndex:<span class="number">0</span>];</span><br><span class="line">    &#125;</span><br><span class="line">    [<span class="keyword">self</span> updateRelativeDimensionLines];</span><br><span class="line">    [<span class="keyword">self</span>.view bringSubviewToFront:(<span class="built_in">UIView</span> *)[<span class="keyword">self</span> valueForKey:<span class="string">@"explorerToolbar"</span>]];</span><br><span class="line">    [<span class="keyword">self</span> performSelector:<span class="keyword">@selector</span>(updateButtonStates)];</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>通过调试，定位到问题出现在objc_msgSend函数调用这一行，这行代码的作用是调用FLEX库的viewForSelectionAtPoint:方法返回用户点击的UIView，入参为用户点击的坐标。调试过程中发现，通过objc_msgSend函数调用时，传入viewForSelectionAtPoint:方法的坐标发生了变化（x和y值发生了互换，在模拟器上正常）。</p>
+<p>我们知道objc_msgSend是OC中的核心函数，所有的方法调用最终都会转化成objc_msgSend函数调用，Apple为了优化其性能，该函数内部使用汇编语言实现，而且不同平台对应不同的汇编文件，你可以在这里<a href="https://opensource.apple.com/source/objc4/objc4-723/runtime/Messengers.subproj/" target="_blank" rel="noopener">objc_msgSend汇编源码</a>查阅相关源代码。objc_msgSend中使用了cache，而且为了实现极致的性能优化，该函数使用了ldp指令、编译内存屏障（Compile Memory Barrier）、内存垃圾回收等技术代替锁来解决多线程环境下的读写竞争和死锁问题。</p>
+<p>通过查阅资料发现，objc_msgSend函数与正常的C函数不同，调用时要准确地指定其返回值、入参等的类型：</p>
+<blockquote>
+<p>This unusual casting situation arises because objc_msgSend is not intended to be called like a normal C function. It is (and must be) implemented in assembly, and just jumps to a target C function after fiddling with a few registers. In particular, there is no consistent way to refer to any argument past the first two from within objc_msgSend. Another case where just calling objc_msgSend straight wouldn’t work is a method that returns an NSRect, say, because objc_msgSend is not used in that case, objc_msgSend_stret is. In the underlying C function for a method that returns an NSRect, the first argument is actually a pointer to an out value NSRect, and the function itself actually returns void. You must match this convention when calling because it’s what the called method will assume. Further, the circumstances in which objc_msgSend_stret is used differ between architectures. There is also an objc_msgSend_fpret, which should be used for methods that return certain floating point types on certain architectures.</p>
+</blockquote>
+<p>因此，修改objc_msgSend函数调用后，问题得到解决：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">UIView</span> *selectedView = ((<span class="built_in">UIView</span>* (*)(<span class="keyword">id</span>, SEL, <span class="built_in">CGPoint</span> p))objc_msgSend)(<span class="keyword">self</span>, <span class="keyword">@selector</span>(viewForSelectionAtPoint:), selectionPointInWindow);</span><br></pre></td></tr></table></figure>
+<h3 id="二、问题定位"><a href="#二、问题定位" class="headerlink" title="二、问题定位"></a>二、问题定位</h3><hr>
+<p>以下分析均以ARM64架构为例</p>
+<h4 id="2-1-预备知识"><a href="#2-1-预备知识" class="headerlink" title="2.1 预备知识"></a>2.1 预备知识</h4><p>开始之前，我们先了解一下ARM架构下程序的内存分配和汇编指令的相关知识。</p>
+<h5 id="2-1-1-内存分配与管理"><a href="#2-1-1-内存分配与管理" class="headerlink" title="2.1.1 内存分配与管理"></a>2.1.1 内存分配与管理</h5><p>我们知道，任何指令的执行都离不开内存的操作，而根据用途的不同内存又被划分为堆(heap)、栈(stack)、常量区、全局（静态）区、代码区等。代码区存放可执行文件的指令，可以看做是可执行文件在内存中的镜像（只读）；全局区存放静态变量和全局变量；常量区，顾名思义，存放的是常量。这里重点介绍栈和堆。</p>
+<p><img src="/2018/08/14/从一个BUG谈起，剖析objc-msgSend函数的底层实现/2.jpeg" alt="内存区域说明"></p>
+<ul>
+<li>堆：堆区是一块不连续的内存区域，由开发者分配和释放，我们开发时创建的一些对象等都是在堆中存储的，堆是由内存的低地址向高地址扩展的。</li>
+<li>栈：栈区是一块连续的内存区域，由编译器进行分配和释放，其中的内存随着函数的运行和结束而分配和释放，由系统自动完成。栈的大小是有限制的，如果申请的内存大于栈区的剩余内存（如：快速排序递归层级过多时），程序会crash并报Stack Overflow错误。OS X和iOS系统中，子线程的最大栈空间默认为512KB，而对于主线程的最大栈空间，二者有所不同，OS X默认为8MB，iOS默认为1MB。</li>
+</ul>
+<p><img src="/2018/08/14/从一个BUG谈起，剖析objc-msgSend函数的底层实现/1.jpeg" alt="Apple堆栈大小说明"></p>
+<h5 id="2-1-2-ARM汇编指令介绍"><a href="#2-1-2-ARM汇编指令介绍" class="headerlink" title="2.1.2 ARM汇编指令介绍"></a>2.1.2 ARM汇编指令介绍</h5><p>ARM64有32个长度为64bit的通用寄存器：x0~x30和sp，可以只使用其中的32bit：w0~w30，其中，前8个寄存器x0~x7用于函数调用时传参，同时，x0寄存器也可以作为函数返回值的寄存器。x8寄存器用于间接寻址（当函数返回的内容&gt;16Bytes时，该返回内容会被放入到内存中，然后将该内存地址存入x8寄存器）。</p>
+<ul>
+<li>sp寄存器指向当前frame的栈顶（低地址），可以通过移动sp的位置为栈分配或释放内存空间；</li>
+<li>x29通常作为fp寄存器，指向当前frame的栈底（高地址）；</li>
+<li>x30通常作为lr寄存器，它有两个作用：1、保存子程序的返回地址，2、当异常发生时，用来保存异常的返回地址；</li>
+<li>pc，程序计数器，指向下一条指令。</li>
+</ul>
+<p>stp/ldp指令结合sp、x29、x30寄存器，保证了函数调用结束后的正确返回。</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">sub    sp, sp, <span class="meta">#0x50</span></span><br><span class="line">stp    x29, x30, [sp, <span class="meta">#0x40]</span></span><br><span class="line"></span><br><span class="line">...</span><br><span class="line"></span><br><span class="line">ldp    x29, x30, [sp, <span class="meta">#0x40]</span></span><br><span class="line">add    sp, sp, <span class="meta">#0x50</span></span><br><span class="line">ret</span><br></pre></td></tr></table></figure>
+<p>一些常用的汇编指令：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">MOV X1, X0  ;寄存器X0的值传给X1</span><br><span class="line">ADD X0, X1, X2  ;寄存器X1和X2的值相加后给X0</span><br><span class="line">SUB X0, X1, X2  ;寄存器X1和X2的值相减后给X0</span><br><span class="line"></span><br><span class="line">AND X0, X0, <span class="meta">#0xF    ;X0和0xF相与后的值给X0</span></span><br><span class="line">ORR X0, X0, <span class="meta">#0x10   ;X0和0x10相或后的值给X0</span></span><br><span class="line">EOR X0, X0, <span class="meta">#0x11   ;X0和0x11相异或后的值给X0</span></span><br><span class="line"></span><br><span class="line">LDR(LDUR) X5, [X6, <span class="meta">#0x8]  ;X6寄存器的值(地址)加0x8的地址内的值给X5</span></span><br><span class="line">STR(STUR) X0, [SP, <span class="meta">#0x8]  ;X0的值给(SP+0x8)地址指向的空间</span></span><br><span class="line"></span><br><span class="line">STP X29, X30, [SP, <span class="meta">#0x1]    ;入栈操作</span></span><br><span class="line">LDP X29, X30, [SP, <span class="meta">#0x1]    ;出栈操作</span></span><br><span class="line"></span><br><span class="line">CBZ     比较，如果结果为<span class="number">0</span>，就跳转到后面的指令</span><br><span class="line">CBNZ    比较，如果结果非<span class="number">0</span>，就跳转到后面的指令</span><br><span class="line"></span><br><span class="line"><span class="built_in">CMP</span>     比较指令，结果影响CSPR状态</span><br><span class="line"></span><br><span class="line">B/BL    绝对跳转,无返回值/绝对跳转,返回值地址保存到LR(X30)</span><br><span class="line">RET     子程序返回，返回地址保存到LR(X30)</span><br><span class="line"></span><br><span class="line">ADRP    用来定位数据段中的数据, 因为ASLR会导致代码及数据的地址随机化, 用ADRP来根据PC做辅助定位</span><br></pre></td></tr></table></figure>
+<h4 id="2-2-定位问题"><a href="#2-2-定位问题" class="headerlink" title="2.2 定位问题"></a>2.2 定位问题</h4><p>开启XCode的Always Show Disassembly，并在updateRelativeViewsForSelectionPoint:方法中的调用objc_msgSend代码处加断点，程序执行到断点处，XCode输出反汇编代码如下:</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">GWMovie`-[FLEXExplorerViewController(Relative) updateRelativeViewsForSelectionPoint:]:</span><br><span class="line">    <span class="number">0x1007dd3a0</span> &lt;+<span class="number">0</span>&gt;:   sub    sp, sp, <span class="meta">#0x50             ; =0x50        // 移动sp，分配0x50大小的空间，sp指向当前栈的栈顶</span></span><br><span class="line">    <span class="number">0x1007dd3a4</span> &lt;+<span class="number">4</span>&gt;:   stp    x29, x30, [sp, <span class="meta">#0x40]                    // 开始执行方法之前，将fp、lr寄存器入栈，状态保存到sp+0x40地址</span></span><br><span class="line">    <span class="number">0x1007dd3a8</span> &lt;+<span class="number">8</span>&gt;:   add    x29, sp, <span class="meta">#0x40            ; =0x40        // fp寄存器指向sp+0x40地址，fp指向当前frame的栈底</span></span><br><span class="line">    <span class="number">0x1007dd3ac</span> &lt;+<span class="number">12</span>&gt;:  stur   d0, [x29, <span class="meta">#-0x10]   // 将d0寄存器（存储浮点类型数据）的内容存到fp-0x10地址指向的空间</span></span><br><span class="line">    <span class="number">0x1007dd3b0</span> &lt;+<span class="number">16</span>&gt;:  stur   d1, [x29, <span class="meta">#-0x8]    // 将d1寄存器的内容存入fp-0x8地址指向的空间，d0和d1寄存器中存储的是CGPoint结构体的x、y值</span></span><br><span class="line">    <span class="number">0x1007dd3b4</span> &lt;+<span class="number">20</span>&gt;:  stur   x0, [x29, <span class="meta">#-0x18]</span></span><br><span class="line">    <span class="number">0x1007dd3b8</span> &lt;+<span class="number">24</span>&gt;:  str    x1, [sp, <span class="meta">#0x20]</span></span><br><span class="line">    <span class="number">0x1007dd3bc</span> &lt;+<span class="number">28</span>&gt;:  ldur   x0, [x29, <span class="meta">#-0x18]</span></span><br><span class="line">    <span class="number">0x1007dd3c0</span> &lt;+<span class="number">32</span>&gt;:  adrp   x1, <span class="number">8156</span></span><br><span class="line">    <span class="number">0x1007dd3c4</span> &lt;+<span class="number">36</span>&gt;:  ldr    x1, [x1, <span class="meta">#0x810]</span></span><br><span class="line">    <span class="number">0x1007dd3c8</span> &lt;+<span class="number">40</span>&gt;:  bl     <span class="number">0x101f86fa8</span>               ; symbol stub <span class="keyword">for</span>: objc_msgSend</span><br><span class="line">    <span class="comment">// 这句开始到bl指令之前，是编译器根据calling convention为objc_msgSend的函数调用设置寄存器、栈帧的数据和状态，但是由于未明确指定objc_msgSend函数的原型，导致了calling convention mismatch，这里取的数据和之前存的数据不一致，从而引起了程序的异常行为。</span></span><br><span class="line">-&gt;  <span class="number">0x1007dd3cc</span> &lt;+<span class="number">44</span>&gt;:  ldur   x0, [x29, <span class="meta">#-0x18]    // 将fp-0x18地址的内容存入x0，即：x0中存储的为消息的receiver，在该方法中为self</span></span><br><span class="line">    <span class="number">0x1007dd3d0</span> &lt;+<span class="number">48</span>&gt;:  adrp   x1, <span class="number">8153</span></span><br><span class="line">    <span class="number">0x1007dd3d4</span> &lt;+<span class="number">52</span>&gt;:  ldr    x1, [x1, <span class="meta">#0xf28]     // 将selector存入x1寄存器</span></span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 问题所在，这两句ldr指令将上文存储的d1的数据加载进d0，将d0的数据加载进了d1，从而导致了CGPoint结构体中x、y值的互换</span></span><br><span class="line">    <span class="number">0x1007dd3d8</span> &lt;+<span class="number">56</span>&gt;:  ldur   d0, [x29, <span class="meta">#-0x8]     // 将fp-0x8地址（存储了d1的值）的值给d0</span></span><br><span class="line">    <span class="number">0x1007dd3dc</span> &lt;+<span class="number">60</span>&gt;:  ldur   d1, [x29, <span class="meta">#-0x10]    // 将fp-0x10地址（存储了d0的值）的值给d1</span></span><br><span class="line"></span><br><span class="line">    <span class="number">0x1007dd3e0</span> &lt;+<span class="number">64</span>&gt;:  mov    x30, sp</span><br><span class="line">    <span class="number">0x1007dd3e4</span> &lt;+<span class="number">68</span>&gt;:  str    d0, [x30, <span class="meta">#0x8]</span></span><br><span class="line">    <span class="number">0x1007dd3e8</span> &lt;+<span class="number">72</span>&gt;:  str    d1, [x30]</span><br><span class="line">    <span class="number">0x1007dd3ec</span> &lt;+<span class="number">76</span>&gt;:  bl     <span class="number">0x101f86fa8</span>               ; symbol stub <span class="keyword">for</span>: objc_msgSend</span><br><span class="line">    <span class="number">0x1007dd3f0</span> &lt;+<span class="number">80</span>&gt;:  mov    x29, x29</span><br><span class="line">    <span class="number">0x1007dd3f4</span> &lt;+<span class="number">84</span>&gt;:  bl     <span class="number">0x101f87008</span>               ; symbol stub <span class="keyword">for</span>: objc_retainAutoreleasedReturnValue</span><br><span class="line">    <span class="number">0x1007dd3f8</span> &lt;+<span class="number">88</span>&gt;:  mov    x1, <span class="meta">#0x0</span></span><br><span class="line">    <span class="number">0x1007dd3fc</span> &lt;+<span class="number">92</span>&gt;:  add    x30, sp, <span class="meta">#0x18            ; =0x18 </span></span><br><span class="line">    <span class="number">0x1007dd400</span> &lt;+<span class="number">96</span>&gt;:  str    x0, [sp, <span class="meta">#0x18]</span></span><br><span class="line">    <span class="number">0x1007dd404</span> &lt;+<span class="number">100</span>&gt;: mov    x0, x30</span><br><span class="line">    <span class="number">0x1007dd408</span> &lt;+<span class="number">104</span>&gt;: bl     <span class="number">0x101f87068</span>               ; symbol stub <span class="keyword">for</span>: objc_storeStrong</span><br><span class="line">    <span class="number">0x1007dd40c</span> &lt;+<span class="number">108</span>&gt;: ldp    x29, x30, [sp, <span class="meta">#0x40]    // 恢复到该方法调用之前的状态</span></span><br><span class="line">    <span class="number">0x1007dd410</span> &lt;+<span class="number">112</span>&gt;: add    sp, sp, <span class="meta">#0x50             ; =0x50    // 方法结束，释放空间</span></span><br><span class="line">    <span class="number">0x1007dd414</span> &lt;+<span class="number">116</span>&gt;: ret                 <span class="comment">// 返回，这一步直接执行lr的指令</span></span><br></pre></td></tr></table></figure>
+<p>从反汇编代码中可以看出，输入objc_msgSend函数的CGPoint参数与实际传入updateRelativeViewsForSelectionPoint:方法中的CGPoint参数的x、y值出现了互换：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">stur   d0, [x29, <span class="meta">#-0x10]</span></span><br><span class="line">stur   d1, [x29, <span class="meta">#-0x8]</span></span><br><span class="line">...</span><br><span class="line">ldur   d0, [x29, <span class="meta">#-0x8]</span></span><br><span class="line">ldur   d1, [x29, <span class="meta">#-0x10]</span></span><br></pre></td></tr></table></figure>
+<p>定位到问题出现在objc_msgSend函数的调用上，通过明确指定函数的入参类型和返回值类型，解决该问题。</p>
+<h3 id="三、刨根问底——objc-msgSend函数分析"><a href="#三、刨根问底——objc-msgSend函数分析" class="headerlink" title="三、刨根问底——objc_msgSend函数分析"></a>三、刨根问底——objc_msgSend函数分析</h3><hr>
+<p>那么为什么会出现这种奇怪的BUG呢？实际上，这个问题早在苹果发布的<a href="https://developer.apple.com/library/archive/documentation/General/Conceptual/CocoaTouch64BitGuide/ConvertingYourAppto64-Bit/ConvertingYourAppto64-Bit.html#//apple_ref/doc/uid/TP40013501-CH3-SW26" target="_blank" rel="noopener">64-Bit Transition Guide for Cocoa Touch</a>中提到：</p>
+<blockquote>
+<p>Test your app on actual 64-bit hardware. iOS Simulator can also be helpful during development, but some changes, such as the function calling conventions, are visible only when your app is running on a device.</p>
+</blockquote>
+<p>出现这个问题的原因是，在64-bit runtime下，ARM的调用约定（calling conventions）比32-bit更加严格。消息函数并不与runtime调用的方法函数共享同一个原型（prototype）,因此，当没有指定消息函数的原型时，runtime会直接调用该方法的函数实现，这样就导致了调用约定不匹配（calling convention mismatch）。以objc_msgSend函数为例，它被设计成一个通用的函数，通过calling convention来满足不同入参和不同返回值类型的函数调用，但是，当发生calling convention mismatch时，函数调用者会将参数放到非objc_msgSend函数期望的地方，这样一来，当objc_msgSend函数取值时，可能会取到错误的值，从而导致程序crash或异常行为。</p>
+<blockquote>
+<p>An exception to the casting rule described above is when you are calling the objc_msgSend function or any other similar functions in the Objective-C runtime that send messages. Although the prototype for the message functions has a variadic form, the method function that is called by the Objective-C runtime does not share the same prototype. The Objective-C runtime directly dispatches to the function that implements the method, so the calling conventions are mismatched, as described previously. Therefore you must cast the objc_msgSend function to a prototype that matches the method function being called.</p>
+</blockquote>
+<blockquote>
+<p>If you pass a function pointer in your code, its calling conventions must stay consistent. It should always take the same set of parameters. Never cast a variadic function to a function that takes a fixed number of parameters (or vice versa). Listing 2-13 is an example of a problematic piece function call. Because the function pointer was cast to use a different set of calling conventions, a caller is going to place the parameters in a place that the called function is not expecting. This mismatch may cause your app to crash or to exhibit other unpredictable behaviors.</p>
+</blockquote>
+<h4 id="什么是Calling-Convention？"><a href="#什么是Calling-Convention？" class="headerlink" title="什么是Calling Convention？"></a>什么是Calling Convention？</h4><p>顾名思义，Calling Convention（调用约定）即一个函数调用另一个函数时的约定，包括了参数如何传递、如何从函数返回结果等，编译器必须严格遵循调用约定进行代码编译，这样才能保证生成的代码能够正确地运行。想了解更多有关Calling Convention的内容，请戳这里：<a href="https://developer.apple.com/library/archive/documentation/Xcode/Conceptual/iPhoneOSABIReference/Articles/ARM64FunctionCallingConventions.html#//apple_ref/doc/uid/TP40013702-SW1" target="_blank" rel="noopener">ARM64 Function Calling Conventions</a></p>
+<p>其实，objc_msgSend函数之所以用汇编实现，不仅仅是出于性能的考虑，我们知道objc_msgSend是一个特殊的函数，它被设计可以接收任意数量和类型的参数并可以返回任意类型的值，比如：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">BOOL</span> b = [array containsObject:obj];</span><br><span class="line"><span class="built_in">NSUInteger</span> n = [array count];</span><br><span class="line"><span class="comment">// 上述代码会被转换成以下函数调用</span></span><br><span class="line"><span class="built_in">BOOL</span> b = (<span class="built_in">BOOL</span> (*)(<span class="keyword">id</span>, SEL, <span class="keyword">id</span>))objc_msgSend(array, <span class="keyword">@selector</span>(containsObject), obj);</span><br><span class="line"><span class="built_in">NSUInteger</span> n = (<span class="built_in">NSUInteger</span> (*)(<span class="keyword">id</span>, SEL))objc_msgSend(array, <span class="keyword">@selector</span>(containsObject));</span><br></pre></td></tr></table></figure>
+<p>当objc_msgSend通过selector找到对应的IMP后，只需要通过传入的参数和相应的IMP函数指针调用即可。Objective-C中有各种参数类型、数量的方法调用，objc_msgSend就必须支持任意参数类型、数量和任意返回值的函数调用，如果用C语言实现，就必须加很多switch分支，把所有的参数类型、数量的组合全都覆盖到，这显然是不可能实现的。</p>
+<p>Apple的解决办法是，通过不同的Calling Convention，将objc_msgSend开始执行时所需要的栈帧（stack frame）的状态，各寄存器的参数、组合形式和状态设置等都交给编译器来设置，这样就保证了调用objc_msgSend函数时，栈和各个寄存器中的数据、状态正是调用具体函数时所需要的。</p>
+<blockquote>
+<p>当objc_msgSend找到要调用的函数实现IMP后，只需要把所有的对栈、寄存器的操作“倒”回到objc_msgSend执行开始的状态（类似于函数执行完成return返回前，做的“收尾处理”工作一样，即epilogue），直接jump/call到IMP函数指针对应的地址，执行指令即可，因为所有的参数已经被设置好了。</p>
+</blockquote>
+<blockquote>
+<p>同时，当IMP执行完成后，返回值也被正确的设置好了（在x86平台上，返回值被设置到了指定的寄存器eax/rax里，在arm上，则是r0寄存器），所以，我们也不必担心不同类型的返回值问题了。</p>
+</blockquote>
+<h4 id="objc-msgSend函数汇编源码分析"><a href="#objc-msgSend函数汇编源码分析" class="headerlink" title="objc_msgSend函数汇编源码分析"></a>objc_msgSend函数汇编源码分析</h4><p>objc_msgSend函数的主要作用是：</p>
+<ol>
+<li>根据传入的对象，获取其isa指针，并根据isa指针找到对象所属的类</li>
+<li>获取类的方法缓存，并根据selector从缓存中查找对应的IMP</li>
+<li>如果从缓存中找到IMP，直接调用</li>
+<li>如果没有从缓存中找到，调用C函数（__class_lookupMethodAndLoadCache3）继续查询，并将查询结果存入类的方法缓存</li>
+</ol>
+<p>首先看下objc_msgSend的完整指令（在lldb中输入disassemble -n objc_msgSend -c 100 -b命令）：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0x180718900</span> &lt;+<span class="number">0</span>&gt;:   <span class="number">0xf100001f</span>   cmp    x0, <span class="meta">#0x0                  ; =0x0 </span></span><br><span class="line"><span class="number">0x180718904</span> &lt;+<span class="number">4</span>&gt;:   <span class="number">0x5400034d</span>   b.le   <span class="number">0x18071896c</span>               ; &lt;+<span class="number">108</span>&gt;</span><br><span class="line"><span class="number">0x180718908</span> &lt;+<span class="number">8</span>&gt;:   <span class="number">0xf940000d</span>   ldr    x13, [x0]</span><br><span class="line"><span class="number">0x18071890c</span> &lt;+<span class="number">12</span>&gt;:  <span class="number">0x927d81b0</span>   and    x16, x13, <span class="meta">#0xffffffff8</span></span><br><span class="line"><span class="number">0x180718910</span> &lt;+<span class="number">16</span>&gt;:  <span class="number">0xa9412e0a</span>   ldp    x10, x11, [x16, <span class="meta">#0x10]</span></span><br><span class="line"><span class="number">0x180718914</span> &lt;+<span class="number">20</span>&gt;:  <span class="number">0x0a0b002c</span>   and    w12, w1, w11</span><br><span class="line"><span class="number">0x180718918</span> &lt;+<span class="number">24</span>&gt;:  <span class="number">0x8b0c114c</span>   add    x12, x10, x12, lsl <span class="meta">#4</span></span><br><span class="line"><span class="number">0x18071891c</span> &lt;+<span class="number">28</span>&gt;:  <span class="number">0xa9404589</span>   ldp    x9, x17, [x12]</span><br><span class="line"><span class="number">0x180718920</span> &lt;+<span class="number">32</span>&gt;:  <span class="number">0xeb01013f</span>   cmp    x9, x1</span><br><span class="line"><span class="number">0x180718924</span> &lt;+<span class="number">36</span>&gt;:  <span class="number">0x54000041</span>   b.ne   <span class="number">0x18071892c</span>               ; &lt;+<span class="number">44</span>&gt;</span><br><span class="line"><span class="number">0x180718928</span> &lt;+<span class="number">40</span>&gt;:  <span class="number">0xd61f0220</span>   br     x17</span><br><span class="line"><span class="number">0x18071892c</span> &lt;+<span class="number">44</span>&gt;:  <span class="number">0xb40016a9</span>   cbz    x9, <span class="number">0x180718c00</span>           ; _objc_msgSend_uncached</span><br><span class="line"><span class="number">0x180718930</span> &lt;+<span class="number">48</span>&gt;:  <span class="number">0xeb0a019f</span>   cmp    x12, x10</span><br><span class="line"><span class="number">0x180718934</span> &lt;+<span class="number">52</span>&gt;:  <span class="number">0x54000060</span>   b.eq   <span class="number">0x180718940</span>               ; &lt;+<span class="number">64</span>&gt;</span><br><span class="line"><span class="number">0x180718938</span> &lt;+<span class="number">56</span>&gt;:  <span class="number">0xa9ff4589</span>   ldp    x9, x17, [x12, <span class="meta">#-0x10]!</span></span><br><span class="line"><span class="number">0x18071893c</span> &lt;+<span class="number">60</span>&gt;:  <span class="number">0x17fffff9</span>   b      <span class="number">0x180718920</span>               ; &lt;+<span class="number">32</span>&gt;</span><br><span class="line"><span class="number">0x180718940</span> &lt;+<span class="number">64</span>&gt;:  <span class="number">0x8b2b518c</span>   add    x12, x12, w11, uxtw <span class="meta">#4</span></span><br><span class="line"><span class="number">0x180718944</span> &lt;+<span class="number">68</span>&gt;:  <span class="number">0xa9404589</span>   ldp    x9, x17, [x12]</span><br><span class="line"><span class="number">0x180718948</span> &lt;+<span class="number">72</span>&gt;:  <span class="number">0xeb01013f</span>   cmp    x9, x1</span><br><span class="line"><span class="number">0x18071894c</span> &lt;+<span class="number">76</span>&gt;:  <span class="number">0x54000041</span>   b.ne   <span class="number">0x180718954</span>               ; &lt;+<span class="number">84</span>&gt;</span><br><span class="line"><span class="number">0x180718950</span> &lt;+<span class="number">80</span>&gt;:  <span class="number">0xd61f0220</span>   br     x17</span><br><span class="line"><span class="number">0x180718954</span> &lt;+<span class="number">84</span>&gt;:  <span class="number">0xb4001569</span>   cbz    x9, <span class="number">0x180718c00</span>           ; _objc_msgSend_uncached</span><br><span class="line"><span class="number">0x180718958</span> &lt;+<span class="number">88</span>&gt;:  <span class="number">0xeb0a019f</span>   cmp    x12, x10</span><br><span class="line"><span class="number">0x18071895c</span> &lt;+<span class="number">92</span>&gt;:  <span class="number">0x54000060</span>   b.eq   <span class="number">0x180718968</span>               ; &lt;+<span class="number">104</span>&gt;</span><br><span class="line"><span class="number">0x180718960</span> &lt;+<span class="number">96</span>&gt;:  <span class="number">0xa9ff4589</span>   ldp    x9, x17, [x12, <span class="meta">#-0x10]!</span></span><br><span class="line"><span class="number">0x180718964</span> &lt;+<span class="number">100</span>&gt;: <span class="number">0x17fffff9</span>   b      <span class="number">0x180718948</span>               ; &lt;+<span class="number">72</span>&gt;</span><br><span class="line"><span class="number">0x180718968</span> &lt;+<span class="number">104</span>&gt;: <span class="number">0x140000a6</span>   b      <span class="number">0x180718c00</span>               ; _objc_msgSend_uncached</span><br><span class="line"><span class="number">0x18071896c</span> &lt;+<span class="number">108</span>&gt;: <span class="number">0x540001c0</span>   b.eq   <span class="number">0x1807189a4</span>               ; &lt;+<span class="number">164</span>&gt;</span><br><span class="line"><span class="number">0x180718970</span> &lt;+<span class="number">112</span>&gt;: <span class="number">0xd2fe000a</span>   mov    x10, <span class="meta">#-0x1000000000000000</span></span><br><span class="line"><span class="number">0x180718974</span> &lt;+<span class="number">116</span>&gt;: <span class="number">0xeb0a001f</span>   cmp    x0, x10</span><br><span class="line"><span class="number">0x180718978</span> &lt;+<span class="number">120</span>&gt;: <span class="number">0x540000c2</span>   b.hs   <span class="number">0x180718990</span>               ; &lt;+<span class="number">144</span>&gt;</span><br><span class="line"><span class="number">0x18071897c</span> &lt;+<span class="number">124</span>&gt;: <span class="number">0xb0198daa</span>   adrp   x10, <span class="number">209333</span></span><br><span class="line"><span class="number">0x180718980</span> &lt;+<span class="number">128</span>&gt;: <span class="number">0x9109c14a</span>   add    x10, x10, <span class="meta">#0x270          ; =0x270 </span></span><br><span class="line"><span class="number">0x180718984</span> &lt;+<span class="number">132</span>&gt;: <span class="number">0xd37cfc0b</span>   lsr    x11, x0, <span class="meta">#60</span></span><br><span class="line"><span class="number">0x180718988</span> &lt;+<span class="number">136</span>&gt;: <span class="number">0xf86b7950</span>   ldr    x16, [x10, x11, lsl <span class="meta">#3]</span></span><br><span class="line"><span class="number">0x18071898c</span> &lt;+<span class="number">140</span>&gt;: <span class="number">0x17ffffe1</span>   b      <span class="number">0x180718910</span>               ; &lt;+<span class="number">16</span>&gt;</span><br><span class="line"><span class="number">0x180718990</span> &lt;+<span class="number">144</span>&gt;: <span class="number">0xb0198daa</span>   adrp   x10, <span class="number">209333</span></span><br><span class="line"><span class="number">0x180718994</span> &lt;+<span class="number">148</span>&gt;: <span class="number">0x910bc14a</span>   add    x10, x10, <span class="meta">#0x2f0          ; =0x2f0 </span></span><br><span class="line"><span class="number">0x180718998</span> &lt;+<span class="number">152</span>&gt;: <span class="number">0xd374ec0b</span>   ubfx   x11, x0, <span class="meta">#52, #8</span></span><br><span class="line"><span class="number">0x18071899c</span> &lt;+<span class="number">156</span>&gt;: <span class="number">0xf86b7950</span>   ldr    x16, [x10, x11, lsl <span class="meta">#3]</span></span><br><span class="line"><span class="number">0x1807189a0</span> &lt;+<span class="number">160</span>&gt;: <span class="number">0x17ffffdc</span>   b      <span class="number">0x180718910</span>               ; &lt;+<span class="number">16</span>&gt;</span><br><span class="line"><span class="number">0x1807189a4</span> &lt;+<span class="number">164</span>&gt;: <span class="number">0xd2800001</span>   mov    x1, <span class="meta">#0x0</span></span><br><span class="line"><span class="number">0x1807189a8</span> &lt;+<span class="number">168</span>&gt;: <span class="number">0x2f00e400</span>   movi   d0, <span class="meta">#0000000000000000</span></span><br><span class="line"><span class="number">0x1807189ac</span> &lt;+<span class="number">172</span>&gt;: <span class="number">0x2f00e401</span>   movi   d1, <span class="meta">#0000000000000000</span></span><br><span class="line"><span class="number">0x1807189b0</span> &lt;+<span class="number">176</span>&gt;: <span class="number">0x2f00e402</span>   movi   d2, <span class="meta">#0000000000000000</span></span><br><span class="line"><span class="number">0x1807189b4</span> &lt;+<span class="number">180</span>&gt;: <span class="number">0x2f00e403</span>   movi   d3, <span class="meta">#0000000000000000</span></span><br><span class="line"><span class="number">0x1807189b8</span> &lt;+<span class="number">184</span>&gt;: <span class="number">0xd65f03c0</span>   ret    </span><br><span class="line"><span class="number">0x1807189bc</span> &lt;+<span class="number">188</span>&gt;: <span class="number">0xd503201f</span>   nop</span><br></pre></td></tr></table></figure>
+<p>完整的objc_msgSend流程包括了对receiver为空、<a href="https://juejin.im/post/58fe0c6561ff4b006671e789" target="_blank" rel="noopener">Tagged Pointer</a>、正常对象的判断，方法缓存命中、非命中等不同情况的处理，我们先从正常的情况开始分析，即：receiver非nil且非Tagged Pointer对象、并且在类的方法缓存中查找到对应的实现。</p>
+<h5 id="正常情况"><a href="#正常情况" class="headerlink" title="正常情况"></a>正常情况</h5><figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0x180718900</span> &lt;+<span class="number">0</span>&gt;:   <span class="number">0xf100001f</span>   cmp    x0, <span class="meta">#0x0                  ; =0x0 </span></span><br><span class="line"><span class="number">0x180718904</span> &lt;+<span class="number">4</span>&gt;:   <span class="number">0x5400034d</span>   b.le   <span class="number">0x18071896c</span>               ; &lt;+<span class="number">108</span>&gt;</span><br></pre></td></tr></table></figure>
+<p>这两个指令是对存储在x0寄存器中的receiver与0进行比较，如果receiver小于等于0，跳转到第108行指令处，执行receiver == nil || Tagged Pointer流程。</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0x180718908</span> &lt;+<span class="number">8</span>&gt;:   <span class="number">0xf940000d</span>   ldr    x13, [x0]</span><br></pre></td></tr></table></figure>
+<p>这条指令是加载receiver的第一个64bit(ARM64架构下)指针到x13寄存器。由于所有继承自NSObject的类实例化后的对象都会包含一个类型为isa_t的结构体（即，isa指针），该指针存在对象的第一个字中，因此，x13中保存的即是receiver的isa指针。</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0x18071890c</span> &lt;+<span class="number">12</span>&gt;:  <span class="number">0x927d81b0</span>   and    x16, x13, <span class="meta">#0xffffffff8</span></span><br></pre></td></tr></table></figure>
+<p>由于ARM64可以使用非指针的isa(比如Tagged Pointer对象)，通常情况下，对象的isa指针指向的是对象的类，但是Tagged Pointer的isa利用了备用的bit位（比如，正常的OC对象地址的最高位为0，如果为1则表示对象是Tagged Pointer对象，而如果对象地址的最高4位位0xf，则代表该对象是用户自定义的Tagged Pointer对象，否则是系统自带的Tagged Pointer对象，如NSNumber、NSDate等），因此，这里通过isa指针与0xffffffff8得到receiver所属的Class对象obj_class，并将其保存到x16寄存器。</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0x180718910</span> &lt;+<span class="number">16</span>&gt;:  <span class="number">0xa9412e0a</span>   ldp    x10, x11, [x16, <span class="meta">#0x10]</span></span><br></pre></td></tr></table></figure>
+<p>这个指令是从Class对象偏移16的地址处加载数据到x10,x11两个寄存器中，我们看下obj_class结构体的构成：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> objc_class : objc_object &#123;</span><br><span class="line">    isa_t isa;</span><br><span class="line">    Class superclass;</span><br><span class="line">    cache_t cache;</span><br><span class="line">    class_data_bits_t bits;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>class对象首地址偏移16刚好指向cache_t,因此这条指令是将类的方法缓存加载到寄存器中，具体来说就是将_buckets加载到x10中，将_mask加载到x11的低32位，将_occupied加载到x11的高32位。cache_t的结构如下：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> uint32_t mask_t;</span><br><span class="line"></span><br><span class="line"><span class="keyword">struct</span> bucket_t &#123;</span><br><span class="line">    SEL selector;   <span class="comment">// selector</span></span><br><span class="line">    IMP imp;        <span class="comment">// 方法实现对应的函数指针</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">struct</span> cache_t &#123;</span><br><span class="line">    <span class="keyword">struct</span> bucket_t *_buckets;  <span class="comment">//缓存方法的哈希桶数组指针，桶的数量 = mask + 1</span></span><br><span class="line">    mask_t _mask;  <span class="comment">//描述了哈希表的尺寸，方便用于与运算的掩码。它的值总是一个2的幂减一，用二进制的方法描述看起来就像是000000001111111，末尾是可变数量的1。通过这个值可以知道selector的查找索引，并在查找表的时候包裹着结尾。</span></span><br><span class="line">    mask_t _occupied;           <span class="comment">//哈希表中的条目。</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0x180718914</span> &lt;+<span class="number">20</span>&gt;:  <span class="number">0x0a0b002c</span>   and    w12, w1, w11</span><br></pre></td></tr></table></figure>
+<p>从上文介绍的内容知道，x1中存储的是selector，而w1代表了x1寄存器的低32位，w11位x11寄存器的低32位，因此这条指令将selector的低32位与上面提到的_mask进行与运算并将结果放入x12寄存器的低32位，结果相当于是计算selector % table_size，但是避免了开销很大的模运算。这条指令的作用是计算selector的起始哈希表的索引</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0x180718918</span> &lt;+<span class="number">24</span>&gt;:  <span class="number">0x8b0c114c</span>   add    x12, x10, x12, lsl <span class="meta">#4</span></span><br></pre></td></tr></table></figure>
+<p>有了索引，再取得地址我们就可以从哈希表中加载数据了。这条指令通过_buckets的地址结合上面得到的索引取得要查找的bucket地址。lsl #4是逻辑左移，相当于乘以16，由于每个bucket的大小是16Bytes，此时x12中刚好保存了第一个要查找的bucket的地址。</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0x18071891c</span> &lt;+<span class="number">28</span>&gt;:  <span class="number">0xa9404589</span>   ldp    x9, x17, [x12]</span><br></pre></td></tr></table></figure>
+<p>这条指令将当前bucket的selector加载到x9，将IMP加载到x17中。</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0x180718920</span> &lt;+<span class="number">32</span>&gt;:  <span class="number">0xeb01013f</span>   cmp    x9, x1</span><br><span class="line"><span class="number">0x180718924</span> &lt;+<span class="number">36</span>&gt;:  <span class="number">0x54000041</span>   b.ne   <span class="number">0x18071892c</span>               ; &lt;+<span class="number">44</span>&gt;</span><br><span class="line"><span class="number">0x180718928</span> &lt;+<span class="number">40</span>&gt;:  <span class="number">0xd61f0220</span>   br     x17</span><br><span class="line"><span class="number">0x18071892c</span> &lt;+<span class="number">44</span>&gt;:  <span class="number">0xb40016a9</span>   cbz    x9, <span class="number">0x180718c00</span>           ;</span><br></pre></td></tr></table></figure>
+<p>将当前receiver的selector与从bucket找到的selector进行比较，如果二者相等，则无条件跳转到x17,执行目标函数，至此，objc_msgSend的FAST_EXIT结束。<br>如果二者不相等，跳转到第44个指令，这条指令先是用当前查找的bucket的selector和0作比较，如果等于0则跳转到<strong>objc_msgSend_uncached。这说明这是一个空的bucket，并且意味着这次查找失败了。目标方法不在缓存中，这时候会回到C代码(</strong>objc_msgSend_uncached)，执行更详细的查找。否则就说明bucket不是空的，只是没有匹配，则继续查找。</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0x180718930</span> &lt;+<span class="number">48</span>&gt;:  <span class="number">0xeb0a019f</span>   cmp    x12, x10</span><br><span class="line"><span class="number">0x180718934</span> &lt;+<span class="number">52</span>&gt;:  <span class="number">0x54000060</span>   b.eq   <span class="number">0x180718940</span>               ; &lt;+<span class="number">64</span>&gt;</span><br></pre></td></tr></table></figure>
+<p><strong>FLAG：</strong>将x12中的bucket地址与x10中的哈希表起始地址作比较，如果不相等，继续执行下面的指令，</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0x180718938</span> &lt;+<span class="number">56</span>&gt;:  <span class="number">0xa9ff4589</span>   ldp    x9, x17, [x12, <span class="meta">#-0x10]!</span></span><br><span class="line"><span class="number">0x18071893c</span> &lt;+<span class="number">60</span>&gt;:  <span class="number">0x17fffff9</span>   b      <span class="number">0x180718920</span>               ; &lt;+<span class="number">32</span>&gt;</span><br></pre></td></tr></table></figure>
+<p>这里可以看到一个循环，不断地从哈希表中取出新的bucket，执行第32条指令，直到找到匹配的bucket或者空的bucket或者命中表的开头。这条指令中，地址引用末尾的感叹号是一个有趣的特性。这指定一个寄存器进行回写，意思就是寄存器会更新为计算后的值。</p>
+<p>如果<strong>FLAG</strong>处的比较结果相同，执行以下指令</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0x180718940</span> &lt;+<span class="number">64</span>&gt;:  <span class="number">0x8b2b518c</span>   add    x12, x12, w11, uxtw <span class="meta">#4</span></span><br><span class="line"><span class="number">0x180718944</span> &lt;+<span class="number">68</span>&gt;:  <span class="number">0xa9404589</span>   ldp    x9, x17, [x12]</span><br><span class="line"><span class="number">0x180718948</span> &lt;+<span class="number">72</span>&gt;:  <span class="number">0xeb01013f</span>   cmp    x9, x1</span><br><span class="line"><span class="number">0x18071894c</span> &lt;+<span class="number">76</span>&gt;:  <span class="number">0x54000041</span>   b.ne   <span class="number">0x180718954</span>               ; &lt;+<span class="number">84</span>&gt;</span><br><span class="line"><span class="number">0x180718950</span> &lt;+<span class="number">80</span>&gt;:  <span class="number">0xd61f0220</span>   br     x17</span><br><span class="line"><span class="number">0x180718954</span> &lt;+<span class="number">84</span>&gt;:  <span class="number">0xb4001569</span>   cbz    x9, <span class="number">0x180718c00</span>           ; _objc_msgSend_uncached</span><br></pre></td></tr></table></figure>
+<p>x12包含了当前bucket的指针，此时x12指向的是第一个bucket。w11包含了表的掩码，即表的大小。这里将两个值做了相加，同时将w11左移4位。现在x12中的结果是指向表的末尾，并且从这里可以恢复查找。然后执行ldp指令加载一个新的bucket到x9和x17寄存器，并检查该bucket是否与receiver的selector匹配，如果匹配，跳转到x17执行IMP，否则判断当前bucke是否为空bucket，如果为空，执行_objc_msgSend_uncached流程。</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0x180718958</span> &lt;+<span class="number">88</span>&gt;:  <span class="number">0xeb0a019f</span>   cmp    x12, x10</span><br><span class="line"><span class="number">0x18071895c</span> &lt;+<span class="number">92</span>&gt;:  <span class="number">0x54000060</span>   b.eq   <span class="number">0x180718968</span>               ; &lt;+<span class="number">104</span>&gt;</span><br><span class="line"><span class="number">0x180718960</span> &lt;+<span class="number">96</span>&gt;:  <span class="number">0xa9ff4589</span>   ldp    x9, x17, [x12, <span class="meta">#-0x10]!</span></span><br><span class="line"><span class="number">0x180718964</span> &lt;+<span class="number">100</span>&gt;: <span class="number">0x17fffff9</span>   b      <span class="number">0x180718948</span>               ; &lt;+<span class="number">72</span>&gt;</span><br><span class="line"><span class="number">0x180718968</span> &lt;+<span class="number">104</span>&gt;: <span class="number">0x140000a6</span>   b      <span class="number">0x180718c00</span>               ; _objc_msgSend_uncached</span><br></pre></td></tr></table></figure>
+<p>再一次检查是否已到哈希表的表头，如果没有到表头，则重复上述步骤继续查找bucket；如果再次命中表头，跳转到104行指令处执行_objc_msgSend_uncached流程，调用C函数进行全面查找（SLOW_EXIT）。</p>
+<blockquote>
+<p>额外的二次扫描检查是为了在遇到内存被破坏或者无效对象时，防止陷入无限循环而榨干性能。举个例子，堆损坏能够在缓存中塞满非0的数据，或者设置缓存的掩码为0，缓存不命中就会一直循环执行缓存扫描。额外的检查可以停止循环，将问题转变为崩溃日志。</p>
+</blockquote>
+<blockquote>
+<p>还有一种情况，当有另一个线程同时修改缓存时会引起这个线程即不命中也不miss。C代码做了额外的工作来解决竞争。之前一个版本的objc_msgSend的做法是错误的，它会立即终止，而不是回到C代码，这样做的话运气不好的时候会发生罕见的崩溃。</p>
+</blockquote>
+<h5 id="receiver为nil时"><a href="#receiver为nil时" class="headerlink" title="receiver为nil时"></a>receiver为nil时</h5><figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0x18071896c</span> &lt;+<span class="number">108</span>&gt;: <span class="number">0x540001c0</span>   b.eq   <span class="number">0x1807189a4</span>               ; &lt;+<span class="number">164</span>&gt;</span><br><span class="line"><span class="number">0x1807189a4</span> &lt;+<span class="number">164</span>&gt;: <span class="number">0xd2800001</span>   mov    x1, <span class="meta">#0x0</span></span><br><span class="line"><span class="number">0x1807189a8</span> &lt;+<span class="number">168</span>&gt;: <span class="number">0x2f00e400</span>   movi   d0, <span class="meta">#0000000000000000</span></span><br><span class="line"><span class="number">0x1807189ac</span> &lt;+<span class="number">172</span>&gt;: <span class="number">0x2f00e401</span>   movi   d1, <span class="meta">#0000000000000000</span></span><br><span class="line"><span class="number">0x1807189b0</span> &lt;+<span class="number">176</span>&gt;: <span class="number">0x2f00e402</span>   movi   d2, <span class="meta">#0000000000000000</span></span><br><span class="line"><span class="number">0x1807189b4</span> &lt;+<span class="number">180</span>&gt;: <span class="number">0x2f00e403</span>   movi   d3, <span class="meta">#0000000000000000</span></span><br><span class="line"><span class="number">0x1807189b8</span> &lt;+<span class="number">184</span>&gt;: <span class="number">0xd65f03c0</span>   ret</span><br></pre></td></tr></table></figure>
+<p>当receiver为nil时，仅仅是将x0、x1、d0~d3寄存器的值设置为0（整型的返回值被保存在x0、x1中，浮点数返回值被保存在向量寄存器v0~v3中），然后返回给调用者。不清除x0是因为此时receiver为nil，x0中本来就是0。</p>
+<h5 id="receiver为Tagged-Pointer时"><a href="#receiver为Tagged-Pointer时" class="headerlink" title="receiver为Tagged Pointer时"></a>receiver为Tagged Pointer时</h5><blockquote>
+<p>简单讨论下tagged pointer是如何工作的。tagged pointer支持多个类。tagged pointer的前四位（ARM 64上）指明对象的类是哪个。本质上就是tagged pointer的isa。当然4位不够保存一个类的指针。实际上，有一张特殊的表存储了可用的tagged pointer的类。这个对象的类的查找是通过搜索这张表中的索引，是否对应于这个tagged pointer的前4位。</p>
+</blockquote>
+<blockquote>
+<p>tagged pointer（至少在AMR64上）也支持扩展类。当前四位都设置为1，接下去的8位用于索引tagged pointer扩展类的表。减少存储他们的代价，就允许运行时能够支持更多的tagged pointer类。</p>
+</blockquote>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0x180718970</span> &lt;+<span class="number">112</span>&gt;: <span class="number">0xd2fe000a</span>   mov    x10, <span class="meta">#-0x1000000000000000</span></span><br><span class="line"><span class="number">0x180718974</span> &lt;+<span class="number">116</span>&gt;: <span class="number">0xeb0a001f</span>   cmp    x0, x10</span><br><span class="line"><span class="number">0x180718978</span> &lt;+<span class="number">120</span>&gt;: <span class="number">0x540000c2</span>   b.hs   <span class="number">0x180718990</span>               ; &lt;+<span class="number">144</span>&gt;</span><br></pre></td></tr></table></figure>
+<p>x10被设置成一个整型值，只有前4位被设置为1，其余位都为0。x10被用作掩码从receiver中提取标志位，检查是否用户扩展的Tagged Pointer，如果receiver大于等于x10，则表示当前receiver为扩展的Tagged Pointer，跳转到144条指令处进行处理。否则说明receiver是系统自带的Tagged Pointer类型对象。</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0x18071897c</span> &lt;+<span class="number">124</span>&gt;: <span class="number">0xb0198daa</span>   adrp   x10, <span class="number">209333</span></span><br><span class="line"><span class="number">0x180718980</span> &lt;+<span class="number">128</span>&gt;: <span class="number">0x9109c14a</span>   add    x10, x10, <span class="meta">#0x270          ; =0x270</span></span><br></pre></td></tr></table></figure>
+<p>1、系统自带Tagged Pointer类型对象的流程， 这里加载了系统Tagged Pointer主表到x10。</p>
+<blockquote>
+<p>ARM64需要两条指令来加载一个符号的地址。这是RISC样架构上的一个标准技术。AMR64上的指针是64位宽的，指令是32位宽。所以一个指令无法保存一个完整的指针。</p>
+</blockquote>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0x180718984</span> &lt;+<span class="number">132</span>&gt;: <span class="number">0xd37cfc0b</span>   lsr    x11, x0, <span class="meta">#60</span></span><br><span class="line"><span class="number">0x180718988</span> &lt;+<span class="number">136</span>&gt;: <span class="number">0xf86b7950</span>   ldr    x16, [x10, x11, lsl <span class="meta">#3]</span></span><br><span class="line"><span class="number">0x18071898c</span> &lt;+<span class="number">140</span>&gt;: <span class="number">0x17ffffe1</span>   b      <span class="number">0x180718910</span>               ; &lt;+<span class="number">16</span>&gt;</span><br></pre></td></tr></table></figure>
+<p>由于系统自带的Tagged Pointer对象的索引保存在对象地址的60~63位，这里将receiver的地址右移60位取得索引并保存到x11中，然后根据该索引从x10的系统Tagged Pointer主表中获取到对象的isa指针并存入x16寄存器，然后跳转到第16条指令处执行后续的方法缓存查找等流程。</p>
+<p>2、用户扩展的Tagged Pointer对象的执行流程也是类似的</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0x180718990</span> &lt;+<span class="number">144</span>&gt;: <span class="number">0xb0198daa</span>   adrp   x10, <span class="number">209333</span></span><br><span class="line"><span class="number">0x180718994</span> &lt;+<span class="number">148</span>&gt;: <span class="number">0x910bc14a</span>   add    x10, x10, <span class="meta">#0x2f0          ; =0x2f0 </span></span><br><span class="line"><span class="number">0x180718998</span> &lt;+<span class="number">152</span>&gt;: <span class="number">0xd374ec0b</span>   ubfx   x11, x0, <span class="meta">#52, #8</span></span><br><span class="line"><span class="number">0x18071899c</span> &lt;+<span class="number">156</span>&gt;: <span class="number">0xf86b7950</span>   ldr    x16, [x10, x11, lsl <span class="meta">#3]</span></span><br><span class="line"><span class="number">0x1807189a0</span> &lt;+<span class="number">160</span>&gt;: <span class="number">0x17ffffdc</span>   b      <span class="number">0x180718910</span>               ; &lt;+<span class="number">16</span>&gt;</span><br></pre></td></tr></table></figure>
+<p>不同的是扩展的Tagged Pointer对象的索引保存在对象地址的52~59位，这里用了一个位域提取指令ubfx提取对象地址的52~59位作为索引存入x11寄存器中，然后通过索引取得对象的isa指针，并进行后续的方法缓存查找等流程。</p>
+<h3 id="四、结束语"><a href="#四、结束语" class="headerlink" title="四、结束语"></a>四、结束语</h3><hr>
+<p>以上就是objc_msgSend函数的汇编分析的所有内容。理解objc_msgSend的实现原理，有助于我们深入理解Runtime机制、定位程序BUG等。<br>这篇文章只是浅显地分析了objc_msgSend函数的汇编实现，其中用到的的诸如Calling Convention、使用Compiler Memory Barrier（编译内存屏障）实现方法缓存的无锁读写同步的技术、使用享元设计模式从Tagged Pointer对象中获取isa等等都值得我们更深入地研究。</p>
+<p><strong>参考文章</strong></p>
+<ul>
+<li><a href="https://opensource.apple.com/source/objc4/objc4-723/runtime/Messengers.subproj/objc-msg-arm64.s.auto.html" target="_blank" rel="noopener">objc-msg-arm64.s源码</a></li>
+<li><a href="https://draveness.me/isa" target="_blank" rel="noopener">从 NSObject 的初始化了解 isa</a></li>
+<li><a href="https://developer.apple.com/library/archive/documentation/Xcode/Conceptual/iPhoneOSABIReference/Articles/ARM64FunctionCallingConventions.html#//apple_ref/doc/uid/TP40013702-SW1" target="_blank" rel="noopener">iOS ABI Function Call Guide</a></li>
+<li><a href="https://developer.apple.com/library/archive/documentation/General/Conceptual/CocoaTouch64BitGuide/ConvertingYourAppto64-Bit/ConvertingYourAppto64-Bit.html#//apple_ref/doc/uid/TP40013501-CH3-SW26" target="_blank" rel="noopener">64-Bit Transition Guide for Cocoa Touch</a></li>
+<li><a href="http://infocenter.arm.com/help/topic/com.arm.doc.ihi0055b/IHI0055B_aapcs64.pdf" target="_blank" rel="noopener">Procedure Call Standard for the ARM 64-bit Architecture</a></li>
+<li><a href="http://www.arigrant.com/blog/2014/2/12/why-objcmsgsend-must-be-written-in-assembly" target="_blank" rel="noopener">Why objc_msgSend Must be Written in Assembly</a></li>
+<li><a href="https://www.jianshu.com/p/df6629ec9a25" target="_blank" rel="noopener">深入解构objc_msgSend函数的实现</a></li>
+<li><a href="http://www.cocoachina.com/ios/20170802/20102.html" target="_blank" rel="noopener">剖析ARM64下的objc_msgSend</a></li>
+</ul>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Objective-C-Runtime/" rel="tag"># Objective-C, Runtime</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2018/06/03/最长回文子串的4种解法（swift实现）/" rel="next" title="最长回文子串的4种解法（swift实现）">
+                <i class="fa fa-chevron-left"></i> 最长回文子串的4种解法（swift实现）
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+    <div class="comments" id="comments">
+    </div>
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Cui Lanqing</p>
+              <p class="site-description motion-element" itemprop="description">一枚有梦想的程序猿</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives">
+              
+                  <span class="site-state-item-count">4</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">4</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#一、引出问题"><span class="nav-number">1.</span> <span class="nav-text">一、引出问题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#二、问题定位"><span class="nav-number">2.</span> <span class="nav-text">二、问题定位</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#2-1-预备知识"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 预备知识</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#2-1-1-内存分配与管理"><span class="nav-number">2.1.1.</span> <span class="nav-text">2.1.1 内存分配与管理</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-1-2-ARM汇编指令介绍"><span class="nav-number">2.1.2.</span> <span class="nav-text">2.1.2 ARM汇编指令介绍</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-2-定位问题"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 定位问题</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#三、刨根问底——objc-msgSend函数分析"><span class="nav-number">3.</span> <span class="nav-text">三、刨根问底——objc_msgSend函数分析</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#什么是Calling-Convention？"><span class="nav-number">3.1.</span> <span class="nav-text">什么是Calling Convention？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#objc-msgSend函数汇编源码分析"><span class="nav-number">3.2.</span> <span class="nav-text">objc_msgSend函数汇编源码分析</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#正常情况"><span class="nav-number">3.2.1.</span> <span class="nav-text">正常情况</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#receiver为nil时"><span class="nav-number">3.2.2.</span> <span class="nav-text">receiver为nil时</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#receiver为Tagged-Pointer时"><span class="nav-number">3.2.3.</span> <span class="nav-text">receiver为Tagged Pointer时</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#四、结束语"><span class="nav-number">4.</span> <span class="nav-text">四、结束语</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+<div class="copyright">&copy; <span itemprop="copyrightYear">2018</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Cui Lanqing</span>
+
+  
+</div>
+
+
+  <div class="powered-by">
+    <i class="fa fa-user-md"></i><span id="busuanzi_container_site_uv">
+    本站访客数:<span id="busuanzi_value_site_uv"></span>
+  </span>
+  </div>
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Pisces</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
