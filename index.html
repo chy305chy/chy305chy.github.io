@@ -253,6 +253,255 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/21/Swift内存模型与指针的使用/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Cui Lanqing">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="崔岚清的个人博客">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/09/21/Swift内存模型与指针的使用/" itemprop="url">Swift内存模型与指针的使用</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-21T16:02:20+08:00">
+                2018-09-21
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/iOS开发/" itemprop="url" rel="index">
+                    <span itemprop="name">iOS开发</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+                <a href="/2018/09/21/Swift内存模型与指针的使用/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count valine-comment-count" data-xid="/2018/09/21/Swift内存模型与指针的使用/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>####一、前言</p>
+<p>我们在编写Objective-C和C代码时经常会用到指针，切换到Swift语言中来，虽然其可以无缝使用C语言指针，但是在语法上与OC和C还是有很大区别的。</p>
+<p>Swift本身是内存安全的，只要确保所有变量在使用前都被正确地初始化，我们不必担心内存问题，因此，Apple官方不建议开发者直接操作内存，但是Swift还是为开发者提供了使用指针直接操作内存的方法，Swift中所有的指针类型都带有“Unsafe”前缀，就是为了提示开发者使用指针的行为是危险且不安全的，要慎重。</p>
+<p>先来看看Swift中的指针类型：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">C</th>
+<th style="text-align:center">Swift</th>
+<th style="text-align:center">说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">const Type *</td>
+<td style="text-align:center">UnsafePointer<type></type></td>
+<td style="text-align:center">指针可变，指针指向的内存值不可变</td>
+</tr>
+<tr>
+<td style="text-align:center">Type *</td>
+<td style="text-align:center">UnsafeMutablePointer<type></type></td>
+<td style="text-align:center">指针可变，指针指向的内存值可变</td>
+</tr>
+<tr>
+<td style="text-align:center">const void *</td>
+<td style="text-align:center">UnsafeRawPointer</td>
+<td style="text-align:center">指针可变，指针指向的内存区域类型不确定，且内存值不可变</td>
+</tr>
+<tr>
+<td style="text-align:center">void *</td>
+<td style="text-align:center">UnsafeMutableRawPointer</td>
+<td style="text-align:center">指针可变，指针指向的内存区域类型不确定，且内存值可变</td>
+</tr>
+<tr>
+<td style="text-align:center">StructType *</td>
+<td style="text-align:center">OpaquePointer</td>
+<td style="text-align:center">C中的一些自定义类型，Swift中无相应的类型，如：sqlite3_stmt结构体</td>
+</tr>
+<tr>
+<td style="text-align:center">ClassType <em> const </em></td>
+<td style="text-align:center">UnsafePointer<classtype></classtype></td>
+<td style="text-align:center">指向指针的指针，指针不可变，指针指向的类可变</td>
+</tr>
+<tr>
+<td style="text-align:center">ClassType <em> __strong </em></td>
+<td style="text-align:center">UnsafeMutablePointer<classtype></classtype></td>
+<td style="text-align:center">指向指针的指针，指针可变，指针指向的类可变</td>
+</tr>
+<tr>
+<td style="text-align:center">int8_t a[]</td>
+<td style="text-align:center">var x:[Int8] -&gt; UnsafeBufferPointer</td>
+<td style="text-align:center">数组指针，指向数组一个元素的地址</td>
+</tr>
+</tbody>
+</table>
+<p>####二、MemoryLayout</p>
+<p>提到指针就不得不说一下内存模型。Swift的内存分配与C/C++/Objective-C/Java等类似：</p>
+<ul>
+<li>Stack: 存储值类型变量（如int、float、struct等），函数调用栈，存储引用类型的临时变量指针</li>
+<li>Heap: 存储引用类型的实例，比如类的对象</li>
+</ul>
+<blockquote>
+<p>内存对齐：出于对寻址速度、原子操作以及简化CPU和Memory之间接口设计等方面的考虑，现代计算机系统对值类型的合法地址做了一些限制，要求某种数据类型的对象的地址必须是K的整数倍（K通常是2、4、8）。</p>
+<p>因此对齐的原则是: <strong>任何K字节的基本对象的地址必须是K的整数倍</strong>。</p>
+<p>Tip: 在声明类或者结构体的成员变量时，可以将占用空间大的变量写在前面，将占用空间小的变量写在后面，以达到减少内存占用的目的。</p>
+</blockquote>
+<p>MemoryLayout是Swift中用来计算数据类型占用内存空间大小的工具，它有三个比较常用的Int类型的属性：</p>
+<ul>
+<li>size/size(ofValue: T):  T类型的实例占用连续内存字节的大小</li>
+<li>alignment/alignment(ofValue: T):  数据类型T的内存对齐原则，在64bit系统下，最大的内存对齐原则是8Byte</li>
+<li>stride/stride(ofValue: T): 由于内存对齐的原因，T类型的实例实际消耗的内存空间stride可能比其size大，浪费的内存空间即：stride - size</li>
+</ul>
+<p>其简单用法如下：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">var count: Int = <span class="number">0</span></span><br><span class="line"></span><br><span class="line">MemoryLayout&lt;Int&gt;.size              <span class="comment">// 8</span></span><br><span class="line">MemoryLayout.size(ofValue: count)   <span class="comment">// 8</span></span><br><span class="line">MemoryLayout&lt;Int&gt;.alignment         <span class="comment">// 8</span></span><br><span class="line">MemoryLayout&lt;Int&gt;.stride            <span class="comment">// 8</span></span><br></pre></td></tr></table></figure>
+<p>我们看下Swift中基本数据类型的MemoryLayout三个属性的值：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> Test: <span class="built_in">NSObject</span> &#123;&#125;</span><br><span class="line">var count: Int = <span class="number">0</span></span><br><span class="line"></span><br><span class="line"><span class="comment">//MARK:- 值类型</span></span><br><span class="line">MemoryLayout&lt;Int&gt;.size          <span class="comment">// 8</span></span><br><span class="line">MemoryLayout&lt;Int&gt;.alignment     <span class="comment">// 8</span></span><br><span class="line">MemoryLayout&lt;Int&gt;.stride        <span class="comment">// 8</span></span><br><span class="line"></span><br><span class="line">MemoryLayout&lt;Double&gt;.size       <span class="comment">// 8</span></span><br><span class="line">MemoryLayout&lt;Double&gt;.alignment  <span class="comment">// 8</span></span><br><span class="line">MemoryLayout&lt;Double&gt;.stride     <span class="comment">// 8</span></span><br><span class="line"></span><br><span class="line">MemoryLayout&lt;Float&gt;.size        <span class="comment">// 4</span></span><br><span class="line">MemoryLayout&lt;Float&gt;.alignment   <span class="comment">// 4</span></span><br><span class="line">MemoryLayout&lt;Float&gt;.stride      <span class="comment">// 4</span></span><br><span class="line"></span><br><span class="line">MemoryLayout&lt;<span class="built_in">UInt</span>&gt;.size         <span class="comment">// 8</span></span><br><span class="line">MemoryLayout&lt;<span class="built_in">UInt</span>&gt;.alignment    <span class="comment">// 8</span></span><br><span class="line">MemoryLayout&lt;<span class="built_in">UInt</span>&gt;.stride       <span class="comment">// 8</span></span><br><span class="line"></span><br><span class="line">MemoryLayout&lt;String&gt;.size       <span class="comment">// 16</span></span><br><span class="line">MemoryLayout&lt;String&gt;.alignment  <span class="comment">// 8</span></span><br><span class="line">MemoryLayout&lt;String&gt;.stride     <span class="comment">// 16</span></span><br><span class="line"></span><br><span class="line"><span class="comment">//MARK: - 引用类型</span></span><br><span class="line">MemoryLayout&lt;Test&gt;.size         <span class="comment">// 8</span></span><br><span class="line">MemoryLayout&lt;Test&gt;.alignment    <span class="comment">// 8</span></span><br><span class="line">MemoryLayout&lt;Test&gt;.stride       <span class="comment">// 8</span></span><br><span class="line"></span><br><span class="line"><span class="comment">//MARK: - 指针类型</span></span><br><span class="line">MemoryLayout&lt;UnsafePointer&lt;Test&gt;&gt;.size      <span class="comment">// 8</span></span><br><span class="line">MemoryLayout&lt;UnsafePointer&lt;Test&gt;&gt;.alignment <span class="comment">// 8</span></span><br><span class="line">MemoryLayout&lt;UnsafePointer&lt;Test&gt;&gt;.stride    <span class="comment">// 8</span></span><br><span class="line"></span><br><span class="line">MemoryLayout&lt;UnsafeBufferPointer&lt;Test&gt;&gt;.size        <span class="comment">// 16</span></span><br><span class="line">MemoryLayout&lt;UnsafeBufferPointer&lt;Test&gt;&gt;.alignment   <span class="comment">// 8</span></span><br><span class="line">MemoryLayout&lt;UnsafeBufferPointer&lt;Test&gt;&gt;.stride      <span class="comment">// 16</span></span><br></pre></td></tr></table></figure>
+<p>####三、Swift指针</p>
+<p>#####3.1、使用类型指针</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//MARK: - 使用类型指针</span></span><br><span class="line">let ptr = UnsafeMutablePointer&lt;Int&gt;.allocate(capacity: <span class="number">1</span>)</span><br><span class="line">ptr.initialize(to: <span class="number">1</span>)   <span class="comment">// 赋值</span></span><br><span class="line"></span><br><span class="line">ptr              <span class="comment">// 0x6000022c00c0</span></span><br><span class="line">ptr.pointee      <span class="comment">// 1</span></span><br><span class="line"></span><br><span class="line">ptr.pointee = <span class="number">100</span></span><br><span class="line">ptr.pointee      <span class="comment">// 100</span></span><br><span class="line"></span><br><span class="line">ptr.advanced(by: <span class="number">1</span>).pointee     <span class="comment">// 指针向后移动8Bytes，其指向的内存内容不确定</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 使用完不要忘记销毁</span></span><br><span class="line">ptr.deallocate()</span><br></pre></td></tr></table></figure>
+<p>#####3.2、使用原生指针</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//MARK: - 使用原生指针</span></span><br><span class="line"></span><br><span class="line">let rawPtr = UnsafeMutableRawPointer.allocate(byteCount: <span class="number">16</span>, alignment: <span class="number">8</span>)</span><br><span class="line">rawPtr.storeBytes(of: <span class="string">"hello world"</span>, as: String.self)</span><br><span class="line">rawPtr.load(as: String.self)    <span class="comment">// hello world</span></span><br><span class="line"></span><br><span class="line">let bufferRawPtr = UnsafeMutableRawBufferPointer(start: rawPtr, count: <span class="number">16</span>)</span><br><span class="line"><span class="comment">// UnsafeRawBufferPointer类型以一系列字节的形式来读取内存</span></span><br><span class="line"><span class="keyword">for</span> (index, byte) <span class="keyword">in</span> bufferRawPtr.enumerated() &#123;</span><br><span class="line">    print(<span class="string">"byte \(index): \(byte)"</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>#####3.3、获取实例的bytes</p>
+<p>在Objective-C中我们经常遇到函数接受bytes指针的参数，那么Swift中如何获取bytes指针呢？</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">var str = <span class="string">"hello world."</span></span><br><span class="line">withUnsafeBytes(of: str) &#123; bytes <span class="keyword">in</span></span><br><span class="line">    <span class="keyword">for</span> byte <span class="keyword">in</span> bytes &#123;</span><br><span class="line">        print(byte)</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 注意：禁止返回指针，如果指针超出withUnsafeBytes作用域，可能会导致意想不到的结果，其他withUnsafeXXX方法同样禁止返回指针</span></span><br><span class="line">    <span class="comment">// return bytes</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>#####3.4、指针类型转换</p>
+<p>我们操作C函数的时候，经常会遇到需要转换指针类型的情况，比如将指向结构体的指针转换为指向其它不同结构体的指针，这种操作在C语言中是很简单但也十分危险的。而由于Swift指针在创建时即明确了其类型，这就意味着一个UnsafePointer<int8>类型的指针不能用在需要UnsafePointer<uint8>的地方，比如：sqlite3_column_text返回值不能用在String(utf8String: )方法中，这个时候就需要用到指针类型转换了：</uint8></int8></p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">let intPtr = UnsafeMutablePointer&lt;Int8&gt;.allocate(capacity: <span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">intPtr.pointee = <span class="number">-1</span></span><br><span class="line">intPtr.pointee      <span class="comment">// -1</span></span><br><span class="line"></span><br><span class="line">let _ = intPtr.withMemoryRebound(to: <span class="built_in">UInt8</span>.self, capacity: <span class="number">1</span>) &#123; ptr <span class="keyword">in</span></span><br><span class="line">    ptr.pointee     <span class="comment">// 255</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>####四、实践——通过指针修改Struct类型实例的属性的值</p>
+<p>  先直接上代码：</p>
+  <figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">  <span class="keyword">struct</span> TestStruct &#123;</span><br><span class="line">    var a: Int8 = <span class="number">7</span>             <span class="comment">// 1 bytes</span></span><br><span class="line">    private var b: Int = <span class="number">6</span>      <span class="comment">// 8 bytes</span></span><br><span class="line">    var c: String = <span class="string">"hello"</span>     <span class="comment">// 16 bytes</span></span><br><span class="line">    var d: Int?                 <span class="comment">// 9 bytes</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">var testStruct = TestStruct()</span><br><span class="line">let rawPtr = withUnsafeMutablePointer(to: &amp;testStruct) &#123;UnsafeMutableRawPointer(mutating: $<span class="number">0</span>)&#125;</span><br><span class="line">let b = rawPtr.load(fromByteOffset: <span class="number">8</span>, as: Int.self)</span><br><span class="line">let bPtr = rawPtr.advanced(by: <span class="number">8</span>).assumingMemoryBound(to: Int.self)</span><br><span class="line">bPtr.pointee        <span class="comment">// 6</span></span><br><span class="line">bPtr.initialize(to: <span class="number">10</span>)</span><br><span class="line">bPtr.pointee        <span class="comment">// 10</span></span><br></pre></td></tr></table></figure>
+<p>  代码分析：<br>  <code>rawPtr</code>指针是一个<code>void *</code>类型的指针，指向<code>testStruct</code>实例所在内存的第一个字节，我们可以通过移动指针获取<code>testStruct</code>的<code>private</code>属性<code>b</code>。<br>  属性<code>a</code>是<code>Int8</code>类型，占用1个字节，但是由于内存对齐的原因，其所占的内存空间为8个字节，因此需要将<code>rawPtr</code>向后移动8个字节才能获取到属性<code>b</code>的起始地址：<code>rawPtr.advanced(by: 8).assumingMemoryBound(to: Int.self)</code>。</p>
+<blockquote>
+<p>assumingMemoryBound(to:)</p>
+</blockquote>
+<blockquote>
+<p>Returns a typed pointer to the memory referenced by this pointer, assuming that the memory is already bound to the specified type.</p>
+</blockquote>
+<p>  因此，将<code>rawPtr</code>向后移动8bytes后通过<code>assumingMemoryBound(to: Int.self)</code>方法，可以得到指向属性<code>b</code>的指针<code>bPtr</code>。之后通过<code>initialize(to: 10)</code>方法重新初始化属性b的内存区域，为其重新赋值。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/14/从一个BUG谈起，剖析objc-msgSend函数的底层实现/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1202,7 +1451,7 @@
               
                 <a href="/archives">
               
-                  <span class="site-state-item-count">4</span>
+                  <span class="site-state-item-count">5</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -1224,7 +1473,7 @@
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">4</span>
+                  <span class="site-state-item-count">5</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
