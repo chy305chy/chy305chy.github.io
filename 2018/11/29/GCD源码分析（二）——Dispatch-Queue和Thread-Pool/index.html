@@ -93,7 +93,7 @@
 <meta property="og:image" content="http://yoursite.com/2018/11/29/GCD源码分析（二）——Dispatch-Queue和Thread-Pool/4.png">
 <meta property="og:image" content="http://yoursite.com/2018/11/29/GCD源码分析（二）——Dispatch-Queue和Thread-Pool/5.png">
 <meta property="og:image" content="http://yoursite.com/2018/11/29/GCD源码分析（二）——Dispatch-Queue和Thread-Pool/6.png">
-<meta property="og:updated_time" content="2018-12-04T07:26:57.998Z">
+<meta property="og:updated_time" content="2018-12-04T07:44:55.746Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="GCD源码分析（二）——Dispatch Queue和Thread Pool">
 <meta name="twitter:description" content="一、前言绝大部分GCD相关的操作都离不开队列（queue），我们可以使用dispatch_get_main_queue获取朱队列，使用dispatch_queue_create创建一个自定义的队列，使用dispatch_get_global_queue获取一个全局的并发队列。那么GCD是如何通过这些队列实现多线程的呢？它又是如何管理这些队列的呢？dispatch_async/dispatch_sy">
@@ -512,7 +512,7 @@
 <figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Test[<span class="number">73008</span>:<span class="number">2443797</span>] main queue complete.</span><br><span class="line">Test[<span class="number">73008</span>:<span class="number">2443854</span>] Task <span class="number">1</span> begin.</span><br></pre></td></tr></table></figure>
 <p>此时程序卡住并没有crash，xcode也并未提示任何crash信息。</p>
 <p>这说明了libdispatch死锁检测机制的问题：它只针对在同一个线程中向串行队列同步提交任务的情况。如果Task 2是在其它线程中同步提交的，它就无法检测出来了。</p>
-<h3 id="三、总结"><a href="#三、总结" class="headerlink" title="三、总结"></a>三、总结</h3><p>本文只是粗略地分析了GCD的queue、dispatch过程以及queue和线程之间的调度关系，libdispatch源码的繁杂远远不止于此，细节之处还有如mach_port通信、线程tsd、runloop callback以及系统内核(libkern)交互等等。感兴趣的同学可以把源码下载下来仔细阅读一下。</p>
+<h3 id="三、总结"><a href="#三、总结" class="headerlink" title="三、总结"></a>三、总结</h3><p>本文只是粗略地分析了GCD的queue、dispatch过程以及queue和线程之间的调度关系，libdispatch源码的繁杂远远不止于此，细节之处还有如：mach_port通信、线程tsd、runloop callback、系统内核(libkern)交互等等，同时还有一些提升程序性能的编程技巧等（libdispatch为了最大限度地提升性能，大量使用了原子操作而非<code>pthread_mutex_lock</code>、<code>OSSpinLock/OSUnfairLock</code>等锁来实现同步）。感兴趣的同学可以把源码下载下来仔细阅读一下。</p>
 
       
     </div>
