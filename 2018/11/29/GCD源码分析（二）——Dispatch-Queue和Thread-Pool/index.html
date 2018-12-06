@@ -1,343 +1,114 @@
 <!DOCTYPE html>
-
-
-
+<html>
+  <!-- Html Head Tag-->
+  <head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="">
+  <meta name="author" content="Cui Lanqing">
+  <!-- Open Graph Data -->
+  <meta property="og:title" content="GCD源码分析（二）——Dispatch Queue和Thread Pool"/>
+  <meta property="og:description" content="一枚有梦想的程序猿" />
+  <meta property="og:site_name" content="崔岚清的个人博客"/>
+  <meta property="og:type" content="article" />
+  <meta property="og:image" content="http://yoursite.com"/>
   
-
-
-<html class="theme-next pisces use-motion" lang="zh-Hans">
-<head>
-  <meta charset="UTF-8"/>
-<meta http-equiv="X-UA-Compatible" content="IE=edge" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
-<meta name="theme-color" content="#222">
-
-
-
-
-
-
-
-
-
-<meta http-equiv="Cache-Control" content="no-transform" />
-<meta http-equiv="Cache-Control" content="no-siteapp" />
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    <link rel="alternate" href="/atom.xml" title="崔岚清的个人博客" type="application/atom+xml">
   
   
-  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
-
-
-
-
-
-
-
-<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
-
-<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
-
-
-  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
-
-
-  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
-
-
-  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
-
-
-  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
-
-
-
-
-
-  <meta name="keywords" content="Hexo, NexT" />
-
-
-
-
-
-
-
-
-
-
-<meta name="description" content="一、前言大部分的GCD操作都离不开队列（queue）：使用dispatch_get_main_queue获取主队列，使用dispatch_queue_create创建一个自定义的队列，使用dispatch_get_global_queue获取一个全局的并发队列等等。那么GCD是如何通过这些队列实现多线程的呢？它又是如何管理这些队列的呢？dispatch_async/dispatch_sync是如何">
-<meta name="keywords" content="iOS、前端">
-<meta property="og:type" content="article">
-<meta property="og:title" content="GCD源码分析（二）——Dispatch Queue和Thread Pool">
-<meta property="og:url" content="http://yoursite.com/2018/11/29/GCD源码分析（二）——Dispatch-Queue和Thread-Pool/index.html">
-<meta property="og:site_name" content="崔岚清的个人博客">
-<meta property="og:description" content="一、前言大部分的GCD操作都离不开队列（queue）：使用dispatch_get_main_queue获取主队列，使用dispatch_queue_create创建一个自定义的队列，使用dispatch_get_global_queue获取一个全局的并发队列等等。那么GCD是如何通过这些队列实现多线程的呢？它又是如何管理这些队列的呢？dispatch_async/dispatch_sync是如何">
-<meta property="og:locale" content="zh-Hans">
-<meta property="og:image" content="http://yoursite.com/2018/11/29/GCD源码分析（二）——Dispatch-Queue和Thread-Pool/gcd_queues_thread.png">
-<meta property="og:image" content="http://yoursite.com/2018/11/29/GCD源码分析（二）——Dispatch-Queue和Thread-Pool/2.png">
-<meta property="og:image" content="http://yoursite.com/2018/11/29/GCD源码分析（二）——Dispatch-Queue和Thread-Pool/3.png">
-<meta property="og:image" content="http://yoursite.com/2018/11/29/GCD源码分析（二）——Dispatch-Queue和Thread-Pool/4.png">
-<meta property="og:image" content="http://yoursite.com/2018/11/29/GCD源码分析（二）——Dispatch-Queue和Thread-Pool/5.png">
-<meta property="og:image" content="http://yoursite.com/2018/11/29/GCD源码分析（二）——Dispatch-Queue和Thread-Pool/6.png">
-<meta property="og:updated_time" content="2018-12-04T08:10:54.301Z">
-<meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="GCD源码分析（二）——Dispatch Queue和Thread Pool">
-<meta name="twitter:description" content="一、前言大部分的GCD操作都离不开队列（queue）：使用dispatch_get_main_queue获取主队列，使用dispatch_queue_create创建一个自定义的队列，使用dispatch_get_global_queue获取一个全局的并发队列等等。那么GCD是如何通过这些队列实现多线程的呢？它又是如何管理这些队列的呢？dispatch_async/dispatch_sync是如何">
-<meta name="twitter:image" content="http://yoursite.com/2018/11/29/GCD源码分析（二）——Dispatch-Queue和Thread-Pool/gcd_queues_thread.png">
-
-
-
-<script type="text/javascript" id="hexo.configurations">
-  var NexT = window.NexT || {};
-  var CONFIG = {
-    root: '/',
-    scheme: 'Pisces',
-    version: '5.1.4',
-    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
-    fancybox: true,
-    tabs: true,
-    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
-    duoshuo: {
-      userId: '0',
-      author: '博主'
-    },
-    algolia: {
-      applicationID: '',
-      apiKey: '',
-      indexName: '',
-      hits: {"per_page":10},
-      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
-    }
-  };
-</script>
-
-
-
-  <link rel="canonical" href="http://yoursite.com/2018/11/29/GCD源码分析（二）——Dispatch-Queue和Thread-Pool/"/>
-
-
-
-
-
-  <title>GCD源码分析（二）——Dispatch Queue和Thread Pool | 崔岚清的个人博客</title>
+    <link rel="icon" href="/favicon.png">
   
 
+  <!-- Site Title -->
+  <title>崔岚清的个人博客</title>
 
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="/css/bootstrap.min.css">
+  <!-- Custom CSS -->
+  
+  <link rel="stylesheet" href="/css/style.light.css">
 
-
-
-
-
+  <!-- Google Analytics -->
+  
 
 </head>
 
-<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
-
-  
-  
-    
-  
-
-  <div class="container sidebar-position-left page-post-detail">
-    <div class="headband"></div>
-
-    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
-      <div class="header-inner"><div class="site-brand-wrapper">
-  <div class="site-meta ">
-    
-
-    <div class="custom-logo-site-title">
-      <a href="/"  class="brand" rel="start">
-        <span class="logo-line-before"><i></i></span>
-        <span class="site-title">崔岚清的个人博客</span>
-        <span class="logo-line-after"><i></i></span>
-      </a>
-    </div>
-      
-        <p class="site-subtitle">集跬步至千里，积小流成江海</p>
-      
-  </div>
-
-  <div class="site-nav-toggle">
-    <button>
-      <span class="btn-bar"></span>
-      <span class="btn-bar"></span>
-      <span class="btn-bar"></span>
-    </button>
-  </div>
-</div>
-
-<nav class="site-nav">
-  
-
-  
-    <ul id="menu" class="menu">
-      
-        
-        <li class="menu-item menu-item-home">
-          <a href="/" rel="section">
-            
-              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
-            
-            首页
-          </a>
-        </li>
-      
-        
-        <li class="menu-item menu-item-categories">
-          <a href="/categories" rel="section">
-            
-              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
-            
-            分类
-          </a>
-        </li>
-      
-        
-        <li class="menu-item menu-item-tags">
-          <a href="/tags/" rel="section">
-            
-              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
-            
-            标签
-          </a>
-        </li>
-      
-        
-        <li class="menu-item menu-item-archives">
-          <a href="/archives" rel="section">
-            
-              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
-            
-            归档
-          </a>
-        </li>
-      
-
-      
-    </ul>
-  
-
-  
-</nav>
+  <body>
+    <!-- Page Header -->
 
 
-
- </div>
-    </header>
-
-    <main id="main" class="main">
-      <div class="main-inner">
-        <div class="content-wrap">
-          <div id="content" class="content">
-            
-
-  <div id="posts" class="posts-expand">
-    
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/11/29/GCD源码分析（二）——Dispatch-Queue和Thread-Pool/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Cui Lanqing">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="崔岚清的个人博客">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">GCD源码分析（二）——Dispatch Queue和Thread Pool</h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-11-29T19:21:37+08:00">
-                2018-11-29
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-              <span class="post-comments-count">
-                <span class="post-meta-divider">|</span>
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-comment-o"></i>
-                </span>
-                <a href="/2018/11/29/GCD源码分析（二）——Dispatch-Queue和Thread-Pool/#comments" itemprop="discussionUrl">
-                  <span class="post-comments-count valine-comment-count" data-xid="/2018/11/29/GCD源码分析（二）——Dispatch-Queue和Thread-Pool/" itemprop="commentCount"></span>
-                </a>
-              </span>
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
+<header class="site-header header-background" style="background-image: url(/img/default-banner-dark.jpg)">
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+        <div class="page-title with-background-image">
+          <p class="title">GCD源码分析（二）——Dispatch Queue和Thread Pool</p>
+          <p class="subtitle"></p>
         </div>
-      </header>
-    
+        <div class="site-menu with-background-image">
+          <ul>
+            
+              <li>
+                <a href="/">
+                  
+                  Home
+                  
+                </a>
+              </li>
+            
+              <li>
+                <a href="/archives">
+                  
+                  Archives
+                  
+                </a>
+              </li>
+            
+              <li>
+                <a href="https://github.com/<your-github-username>">
+                  
+                  Github
+                  
+                </a>
+              </li>
+            
+              <li>
+                <a href="mailto:<your-email-address>">
+                  
+                  Email
+                  
+                </a>
+              </li>
+            
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
 
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        <h3 id="一、前言"><a href="#一、前言" class="headerlink" title="一、前言"></a>一、前言</h3><p>大部分的GCD操作都离不开队列（queue）：使用<code>dispatch_get_main_queue</code>获取主队列，使用<code>dispatch_queue_create</code>创建一个自定义的队列，使用<code>dispatch_get_global_queue</code>获取一个全局的并发队列等等。那么GCD是如何通过这些队列实现多线程的呢？它又是如何管理这些队列的呢？<code>dispatch_async/dispatch_sync</code>是如何工作的呢？带着这些问题，我们从源码中寻找答案。</p>
+<article>
+  <div class="container typo">
+    <div class="row">
+      <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+        <div class="post-info text-muted">
+          
+            <!-- Author -->
+            <span class="author info">By Cui Lanqing</span>
+          
+          <!-- Date -->
+          <span class="date-time info">On
+            <span class="date">2018-11-29</span>
+            <span class="time">10:52:29</span>
+          </span>
+          
+        </div>
+        <!-- Tags -->
+        
+        <!-- Post Main Content -->
+        <div class="post-content">
+          <h3 id="一、前言"><a href="#一、前言" class="headerlink" title="一、前言"></a>一、前言</h3><p>大部分的GCD操作都离不开队列（queue）：使用<code>dispatch_get_main_queue</code>获取主队列，使用<code>dispatch_queue_create</code>创建一个自定义的队列，使用<code>dispatch_get_global_queue</code>获取一个全局的并发队列等等。那么GCD是如何通过这些队列实现多线程的呢？它又是如何管理这些队列的呢？<code>dispatch_async/dispatch_sync</code>是如何工作的呢？带着这些问题，我们从源码中寻找答案。</p>
 <h3 id="二、队列与线程"><a href="#二、队列与线程" class="headerlink" title="二、队列与线程"></a>二、队列与线程</h3><p>首先，借用一张网上的图片直观地描述GCD队列和线程的关系。</p>
 <p><img src="/2018/11/29/GCD源码分析（二）——Dispatch-Queue和Thread-Pool/gcd_queues_thread.png" alt="GCD队列和线程"></p>
 <p>通过GCD，我们可以很方便地实现多线程，而不需要过多地关注线程的实现和创建等，GCD内部维护了一个线程池，由系统根据任务的数量和优先级动态地创建和分配线程执行。</p>
@@ -513,411 +284,42 @@
 <p>这说明了libdispatch死锁检测机制的问题：它只针对在同一个线程中向串行队列同步提交任务的情况。如果Task 2是在其它线程中同步提交的，它就无法检测出来了。</p>
 <h3 id="三、总结"><a href="#三、总结" class="headerlink" title="三、总结"></a>三、总结</h3><p>本文只是粗略地分析了GCD的queue、dispatch过程以及queue和线程之间的调度关系，libdispatch源码的繁杂远远不止于此，细节之处还有如：mach_port通信、线程tsd、runloop callback、系统内核(libkern)交互等等，同时还有一些提升程序性能的编程技巧等（libdispatch为了最大限度地提升性能，大量使用了原子操作而非<code>pthread_mutex_lock</code>、<code>OSSpinLock/OSUnfairLock</code>等锁来实现同步）。感兴趣的同学可以把源码下载下来仔细阅读一下。</p>
 
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-      
-      
-
-      
-        <div class="post-nav">
-          <div class="post-nav-next post-nav-item">
-            
-              <a href="/2018/11/29/GCD源码分析（一）——“对象”和数据结构/" rel="next" title="GCD源码分析（一）——“对象”和数据结构">
-                <i class="fa fa-chevron-left"></i> GCD源码分析（一）——“对象”和数据结构
-              </a>
-            
-          </div>
-
-          <span class="post-nav-divider"></span>
-
-          <div class="post-nav-prev post-nav-item">
-            
-          </div>
         </div>
-      
-
-      
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-
-    <div class="post-spread">
-      
-    </div>
-  </div>
-
-
-          </div>
-          
-
-
-          
-
-  
-    <div class="comments" id="comments">
-    </div>
-  
-
-
-
-        </div>
-        
-          
-  
-  <div class="sidebar-toggle">
-    <div class="sidebar-toggle-line-wrap">
-      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
-      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
-      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
-    </div>
-  </div>
-
-  <aside id="sidebar" class="sidebar">
-    
-    <div class="sidebar-inner">
-
-      
-
-      
-        <ul class="sidebar-nav motion-element">
-          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
-            文章目录
-          </li>
-          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
-            站点概览
-          </li>
-        </ul>
-      
-
-      <section class="site-overview-wrap sidebar-panel">
-        <div class="site-overview">
-          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
-            
-              <p class="site-author-name" itemprop="name">Cui Lanqing</p>
-              <p class="site-description motion-element" itemprop="description">一枚有梦想的程序猿</p>
-          </div>
-
-          <nav class="site-state motion-element">
-
-            
-              <div class="site-state-item site-state-posts">
-              
-                <a href="/archives">
-              
-                  <span class="site-state-item-count">8</span>
-                  <span class="site-state-item-name">日志</span>
-                </a>
-              </div>
-            
-
-            
-              
-              
-              <div class="site-state-item site-state-categories">
-                <a href="/categories/index.html">
-                  <span class="site-state-item-count">2</span>
-                  <span class="site-state-item-name">分类</span>
-                </a>
-              </div>
-            
-
-            
-              
-              
-              <div class="site-state-item site-state-tags">
-                <a href="/tags/index.html">
-                  <span class="site-state-item-count">5</span>
-                  <span class="site-state-item-name">标签</span>
-                </a>
-              </div>
-            
-
-          </nav>
-
-          
-
-          
-
-          
-          
-
-          
-          
-
-          
-
-        </div>
-      </section>
-
-      
-      <!--noindex-->
-        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
-          <div class="post-toc">
-
-            
-              
-            
-
-            
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#一、前言"><span class="nav-number">1.</span> <span class="nav-text">一、前言</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#二、队列与线程"><span class="nav-number">2.</span> <span class="nav-text">二、队列与线程</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#GCD中队列的种类"><span class="nav-number">2.1.</span> <span class="nav-text">GCD中队列的种类</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#主队列main-queue"><span class="nav-number">2.1.1.</span> <span class="nav-text">主队列main queue</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#1、-do-vtable、-objc-isa"><span class="nav-number">2.1.2.</span> <span class="nav-text">1、.do_vtable、._objc_isa</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2、-do-ref-cnt、-do-xref-cnt"><span class="nav-number">2.1.3.</span> <span class="nav-text">2、.do_ref_cnt、.do_xref_cnt</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#3、-do-targetq"><span class="nav-number">2.1.4.</span> <span class="nav-text">3、.do_targetq</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#全局队列global-queue"><span class="nav-number">2.1.5.</span> <span class="nav-text">全局队列global queue</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#管理队列manager-queue"><span class="nav-number">2.1.6.</span> <span class="nav-text">管理队列manager queue</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#自定义队列"><span class="nav-number">2.1.7.</span> <span class="nav-text">自定义队列</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Runloop队列"><span class="nav-number">2.1.8.</span> <span class="nav-text">Runloop队列</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#GCD-dispatch流程分析"><span class="nav-number">2.2.</span> <span class="nav-text">GCD dispatch流程分析</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#dispatch-async分析"><span class="nav-number">2.2.1.</span> <span class="nav-text">dispatch_async分析</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#主队列的dispatch-async"><span class="nav-number">2.2.1.1.</span> <span class="nav-text">主队列的dispatch_async</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#自定义队列-全局队列上的dispatch-async"><span class="nav-number">2.2.1.2.</span> <span class="nav-text">自定义队列/全局队列上的dispatch_async</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#总结"><span class="nav-number">2.2.1.3.</span> <span class="nav-text">总结</span></a></li></ol></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#dispatch-sync分析"><span class="nav-number">2.3.</span> <span class="nav-text">dispatch_sync分析</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#获取队列的lock"><span class="nav-number">2.3.1.</span> <span class="nav-text">获取队列的lock</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#死锁分析"><span class="nav-number">2.3.2.</span> <span class="nav-text">死锁分析</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#三、总结"><span class="nav-number">3.</span> <span class="nav-text">三、总结</span></a></li></ol></div>
-            
-
-          </div>
-        </section>
-      <!--/noindex-->
-      
-
-      
-
-    </div>
-  </aside>
-
-
-        
       </div>
-    </main>
-
-    <footer id="footer" class="footer">
-      <div class="footer-inner">
-        <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
-<div class="copyright">&copy; <span itemprop="copyrightYear">2018</span>
-  <span class="with-love">
-    <i class="fa fa-user"></i>
-  </span>
-  <span class="author" itemprop="copyrightHolder">Cui Lanqing</span>
-
-  
-</div>
-
-
-  <div class="powered-by">
-    <i class="fa fa-user-md"></i><span id="busuanzi_container_site_uv">
-    本站访客数:<span id="busuanzi_value_site_uv"></span>
-  </span>
+    </div>
   </div>
-  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+</article>
 
 
 
-  <span class="post-meta-divider">|</span>
-
-
-
-  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Pisces</a> v5.1.4</div>
-
-
-
-
-        
-
-
-
-
-
-
-
-        
+    <!-- Footer -->
+<footer>
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+        <p class="copyright text-muted">
+          Theme By <a target="_blank" href="https://github.com/levblanc">Levblanc.</a>
+          Inspired By <a target="_blank" href="https://github.com/klugjo/hexo-theme-clean-blog">Clean Blog.</a>
+        <p class="copyright text-muted">
+          Powered By <a target="_blank" href="https://hexo.io/">Hexo.</a>
+        </p>
       </div>
-    </footer>
-
-    
-      <div class="back-to-top">
-        <i class="fa fa-arrow-up"></i>
-        
-      </div>
-    
-
-    
-
+    </div>
   </div>
+</footer>
 
-  
 
-<script type="text/javascript">
-  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
-    window.Promise = null;
-  }
+    <!-- After Footer Scripts -->
+<script src="/js/highlight.pack.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function(event) {
+    var codeBlocks = Array.prototype.slice.call(document.getElementsByTagName('pre'))
+    codeBlocks.forEach(function(block, index) {
+      hljs.highlightBlock(block);
+    });
+  });
 </script>
 
-
-
-
-
-
-
-
-
-  
-
-
-
-
-
-
-
-
-
-
-
-
-  
-  
-    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
-  
-
-  
-  
-    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
-  
-
-  
-  
-    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
-  
-
-  
-  
-    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
-  
-
-  
-  
-    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
-  
-
-  
-  
-    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
-  
-
-
-  
-
-
-  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
-
-  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
-
-
-
-  
-  
-
-
-  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
-
-  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
-
-
-
-  
-  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
-<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
-
-
-
-  
-
-
-  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
-
-
-
-  
-
-
-  
-
-
-
-
-	
-
-
-
-
-
-  
-
-
-
-
-
-  
-
-
-
-
-
-
-
-
-
-
-  <script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
-  <script src="//unpkg.com/valine/dist/Valine.min.js"></script>
-  
-  <script type="text/javascript">
-    var GUEST = ['nick','mail','link'];
-    var guest = 'nick,mail,link';
-    guest = guest.split(',').filter(item=>{
-      return GUEST.indexOf(item)>-1;
-    });
-    new Valine({
-        el: '#comments' ,
-        verify: false,
-        notify: false,
-        appId: 'WCdYKBzVHyUAmYLBFSD0S1EM-gzGzoHsz',
-        appKey: 'TeFriUwpGPw3n0GaJ9PSdzEh',
-        placeholder: 'Just go go',
-        avatar:'mm',
-        guest_info:guest,
-        pageSize:'10' || 10,
-    });
-  </script>
-
-
-
-  
-
-
-
-
-
-  
-
-  
-
-  
-
-  
-  
-
-  
-
-  
-
-  
-
-</body>
+  </body>
 </html>
+
