@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+  <!-- Html Head Tag-->
+  <head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="">
+  <meta name="author" content="Cui Lanqing">
+  <!-- Open Graph Data -->
+  <meta property="og:title" content="GCD源码分析（四）——dispatch_once(下)"/>
+  <meta property="og:description" content="一枚有梦想的程序猿" />
+  <meta property="og:site_name" content="崔岚清的个人博客"/>
+  <meta property="og:type" content="article" />
+  <meta property="og:image" content="http://yoursite.com"/>
+  
+    <link rel="alternate" href="/atom.xml" title="崔岚清的个人博客" type="application/atom+xml">
+  
+  
+    <link rel="icon" href="/favicon.png">
+  
+
+  <!-- Site Title -->
+  <title>崔岚清的个人博客</title>
+
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="/css/bootstrap.min.css">
+  <!-- Custom CSS -->
+  
+  <link rel="stylesheet" href="/css/style.light.css">
+
+  <!-- Google Analytics -->
+  
+
+</head>
+
+  <body>
+    <!-- Page Header -->
+
+
+<header class="site-header header-background" style="background-image: url(/img/default-banner-light.jpg)">
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+        <div class="page-title with-background-image">
+          <p class="title">GCD源码分析（四）——dispatch_once(下)</p>
+          <p class="subtitle"></p>
+        </div>
+        <div class="site-menu with-background-image">
+          <ul>
+            
+              <li>
+                <a href="/">
+                  
+                  Home
+                  
+                </a>
+              </li>
+            
+              <li>
+                <a href="/archives">
+                  
+                  Archives
+                  
+                </a>
+              </li>
+            
+              <li>
+                <a href="https://github.com/<your-github-username>">
+                  
+                  Github
+                  
+                </a>
+              </li>
+            
+              <li>
+                <a href="mailto:<your-email-address>">
+                  
+                  Email
+                  
+                </a>
+              </li>
+            
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<article>
+  <div class="container typo">
+    <div class="row">
+      <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+        <div class="post-info text-muted">
+          
+            <!-- Author -->
+            <span class="author info">By Cui Lanqing</span>
+          
+          <!-- Date -->
+          <span class="date-time info">On
+            <span class="date">2018-12-10</span>
+            <span class="time">17:28:36</span>
+          </span>
+          
+          <!--  Categories  -->
+            <span class="categories info">Under 
+
+<a href="/categories/iOS开发/">iOS开发</a>
+</span>
+          
+        </div>
+        <!-- Tags -->
+        
+          <div class="post-tags text-muted">
+            Tags: 
+
+<a class="tag" href="/tags/Objective-C-libdispatch-GCD/">#Objective-C, libdispatch, GCD</a>
+
+
+          </div>
+        
+        <!-- Post Main Content -->
+        <div class="post-content">
+          <h3 id="一、引言"><a href="#一、引言" class="headerlink" title="一、引言"></a>一、引言</h3><p>上篇文章中讲到，<code>dispatch_once</code>使用无锁方式实现线程安全和优异的性能。本篇文章我们来分析一下<code>dispatch_once</code>的性能。</p>
+<p>从<code>dispatch_once</code>的源码可以看出，其本质就是一个<code>if-else</code>语句。我们使用非线程安全的纯<code>if-else</code>语句作为空白对照。</p>
+<p>纯if-else:</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">- (<span class="keyword">void</span>)benchmark &#123;</span><br><span class="line">    TestObject *obj = <span class="literal">nil</span>;</span><br><span class="line">    mach_timebase_info(&amp;_timebaseInfo);</span><br><span class="line">    uint64_t start = mach_absolute_time();</span><br><span class="line">    <span class="keyword">if</span> (!obj) &#123;</span><br><span class="line">        uint64_t end = mach_absolute_time();</span><br><span class="line">        uint64_t duration = (end - start) * _timebaseInfo.numer / _timebaseInfo.denom;</span><br><span class="line">        <span class="built_in">NSLog</span>(<span class="string">@"=== benchmark: %llu"</span>, duration);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>接下来是用<code>pthread_mutex_lock</code>实现的线程安全的<code>if-else</code>：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">- (<span class="keyword">void</span>)mutexLock &#123;</span><br><span class="line">    TestObject *obj = <span class="literal">nil</span>;</span><br><span class="line">    mach_timebase_info_data_t timebaseInfo;</span><br><span class="line">    mach_timebase_info(&amp;timebaseInfo);</span><br><span class="line">    pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;</span><br><span class="line">    uint64_t start = mach_absolute_time();</span><br><span class="line">    pthread_mutex_lock(&amp;lock);</span><br><span class="line">    <span class="keyword">if</span> (!obj) &#123;</span><br><span class="line">        <span class="comment">//obj = [TestObject new];</span></span><br><span class="line">    &#125;</span><br><span class="line">    pthread_mutex_unlock(&amp;lock);</span><br><span class="line">    uint64_t end = mach_absolute_time();</span><br><span class="line">    uint64_t duration = (end - start) * _timebaseInfo.numer / _timebaseInfo.denom;</span><br><span class="line">    <span class="built_in">NSLog</span>(<span class="string">@"=== mutex_lock: %llu"</span>, duration);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>最后是<code>dispatch_once</code>：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">- (<span class="keyword">void</span>)dispatchOnce &#123;</span><br><span class="line">    __block TestObject *obj = <span class="literal">nil</span>;</span><br><span class="line">    mach_timebase_info_data_t timebaseInfo;</span><br><span class="line">    mach_timebase_info(&amp;timebaseInfo);</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; <span class="number">5</span>; i++) &#123;</span><br><span class="line">        uint64_t start = mach_absolute_time();</span><br><span class="line">        <span class="keyword">static</span> <span class="built_in">dispatch_once_t</span> onceToken;</span><br><span class="line">        <span class="built_in">dispatch_once</span>(&amp;onceToken, ^&#123;</span><br><span class="line">            <span class="comment">//obj = [TestObject new];</span></span><br><span class="line">        &#125;);</span><br><span class="line">        uint64_t end = mach_absolute_time();</span><br><span class="line">        uint64_t duration = (end - start) * _timebaseInfo.numer / _timebaseInfo.denom;</span><br><span class="line">        <span class="built_in">NSLog</span>(<span class="string">@"=== dispatch_once %llu"</span>, duration);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在我的macbook pro上测试三种方式的耗时（单位：纳秒）分别为：</p>
+<ol>
+<li>纯if-else：41</li>
+<li>pthread_mutex_lock: 13429</li>
+<li>dispatch_once: 5次输出分别为：3457、328、298、293、194</li>
+</ol>
+<p>可以看出纯<code>if-else</code>语句耗时最少，而效率相对较高的<code>pthread_mutex_lock</code>锁比之<code>dispatch_once</code>的性能有最高40多倍的差距！（<code>dispatch_once</code>首次执行耗时较多）。<br>回顾下上篇中讲到的<code>dispatch_once</code>的三个场景：</p>
+<blockquote>
+<ol>
+<li>第一次执行，执行block，执行完成后置predicate标记</li>
+<li>非第一次执行，而步骤1尚未执行完毕，此时线程需要等待步骤1完成，步骤1完成后依次唤醒等待的线程</li>
+<li>非第一次执行，且步骤1已经执行完成，线程跳过block继续执行后续任务</li>
+</ol>
+</blockquote>
+<p>思考一下，在程序的实际运行中，场景1最多发生一次，场景2发生的次数很少甚至可能一次也不会发生，而场景3是程序执行中最常见的，可能成千上万次地执行。场景3的效率直接影响到整个程序的运行效率。</p>
+<p>从上述的简单测试中发现：针对场景3，<code>dispatch_once</code>只比纯<code>if-else</code>语句慢不到10倍，但是它有着比<code>pthread_mutex_lock</code>高40多倍的性能表现，而且这是在保证线程安全的前提下的性能，确实不可思议，<code>dispatch_once</code>究竟是怎么做到的呢？</p>
+<h3 id="二、CPU指令流水与dispatch-once"><a href="#二、CPU指令流水与dispatch-once" class="headerlink" title="二、CPU指令流水与dispatch_once"></a>二、CPU指令流水与dispatch_once</h3><p>回顾《计算机组成原理》的知识，CPU的指令执行一般包括：取指、译码、执行、回写三个步骤。</p>
+<p>在最古老的CPU上，指令是严格按照顺序执行的：</p>
+<p><img src="/2018/12/10/GCD源码分析（四）——dispatch-once-下/1.png" alt=""></p>
+<p>而现代CPU为了提升运行速度，加入了指令流水线、分支预测和乱序执行等特性，此时CPU的执行顺序如下（图片出自Wikipedia）：</p>
+<p><img src="/2018/12/10/GCD源码分析（四）——dispatch-once-下/2.png" alt=""></p>
+<h4 id="2-1-CPU分支预测"><a href="#2-1-CPU分支预测" class="headerlink" title="2.1 CPU分支预测"></a>2.1 CPU分支预测</h4><p>流水线特性使得CPU能够更快速地执行线性指令序列，但是对于<code>if-else</code>语句，在条件判断结果出来之前，CPU不知道应该执行哪个分支，如果此时让CPU停下来等待判断结果显然不是最优的做法。</p>
+<p>所以现代CPU加入了分支预测的特性，分析程序以往运行记录猜测本次要执行的分支并进行预执行，这样就会产生两个结果：</p>
+<ol>
+<li>猜测正确，CPU无需等待判断结果了，继续往下执行。这样效率是最高的。</li>
+<li>猜测错误，CPU要抛弃所有预执行的结果，重置寄存器等，回滚到正确的分支，重新热启动。由于现代编译器的高度复杂性，程序运行时往往有着很长的piplines，回滚状态和热启动都是很耗时的。</li>
+</ol>
+<p>幸运的是，大多数的程序都有着状态良好的（well-behaved）分支，比如：<code>dispatch_once_f</code>的<code>if-else</code>语句。所以现代CPU的分支预测一般能达到90%的准确率，但是面对无法预测的分支（比如，判断的条件依赖网络返回值等），分支预测就无用武之地了。</p>
+<p>想了解更详细的分支预测，请戳这里：<a href="https://en.wikipedia.org/wiki/Branch_predictor" target="_blank" rel="noopener">Wikipedia_Brach_predictor</a>。</p>
+<h4 id="2-2-barrier"><a href="#2-2-barrier" class="headerlink" title="2.2 barrier"></a>2.2 barrier</h4><p>现代CPU为了尽可能快的运行速度，加入了分支预测和预执行技术。想象一下如下场景：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> TestObject *obj;</span><br><span class="line"><span class="keyword">static</span> <span class="built_in">dispatch_once_t</span> predicate;</span><br><span class="line"><span class="built_in">dispatch_once</span>(&amp;predicate, ^&#123;</span><br><span class="line">    obj = [TestObject new];</span><br><span class="line">&#125;);</span><br><span class="line">[obj description];</span><br></pre></td></tr></table></figure>
+<p>线程A第一次执行<code>dispatch_once</code>，此时线程B、C、D执行<code>dispatch_once</code>，CPU根据以往的经验预执行了“<code>dispatch_once</code>已执行完毕”的分支，但是此时线程A的<code>block</code>尚未执行完毕，<code>obj</code>是<code>nil</code>，此时程序往下执行必然会导致异常行为，严重时甚至会引起crash。</p>
+<p>这种问题要如何避免呢？</p>
+<p>这时，<code>dispatch_once</code>需要一种类似于<a href="https://en.wikipedia.org/wiki/Memory_barrier" target="_blank" rel="noopener">Memory_barrier</a>的机制，防止CPU跑的太快导致程序的异常。当然由于memory_barrier的开销比较大，在对性能很敏感<code>dispatch_once</code>中尽量不要使用。</p>
+<p>我们在<code>_dispatch_once</code>函数中发现了这样一行代码：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">dispatch_compiler_barrier();</span><br></pre></td></tr></table></figure>
+<p>它是一个宏：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#if __GNUC__</span></span><br><span class="line"><span class="meta">#define DISPATCH_EXPECT(x, v) __builtin_expect((x), (v))</span></span><br><span class="line"><span class="meta">#define dispatch_compiler_barrier()  __asm__ __volatile__(<span class="meta-string">""</span> ::: <span class="meta-string">"memory"</span>)</span></span><br><span class="line"><span class="meta">#else</span></span><br><span class="line"><span class="meta">#define DISPATCH_EXPECT(x, v) (x)</span></span><br><span class="line"><span class="meta">#define dispatch_compiler_barrier()  do &#123; &#125; while (0)</span></span><br><span class="line"><span class="meta">#endif</span></span><br></pre></td></tr></table></figure>
+<p>在GCC编译器下，<code>dispatch_compiler_barrier</code>使用<code>__asm__ __volatile__(&quot;&quot; ::: &quot;memory&quot;)</code>语句创建了一个memory_barrier。</p>
+<p><strong>扩展：Xcode编译器的历史</strong></p>
+<p>由于GCC是一个开源组织维护的编译器，GCC的开发组很傲娇，经常无视或者拖延Apple对GCC提出的各种需求，同时GCC对Objecttive-C的许多新特性的支持并不友好。因此，苹果从Xcode3开始就着手使用自家的LLVM编译器代替GCC了，到Xcode5版本时，GCC已被完全废弃，使用LLVM代替。现在Xcode中使用的编译器普遍是Clang-LLVM了，这个编译器的作者是大名鼎鼎的Swift之父Chris Lattner。</p>
+<blockquote>
+<p>Clang-LLVM比GCC优秀在哪些方面<br>据说新的Clang编译器编译Objective-C代码速度比GCC快3倍，并且提供了更友好的代码提示。</p>
+</blockquote>
+<p>对比下新老版本的<code>dispatch_once</code>是如何解决由于CPU预执行了错误的分支而导致的程序异常的问题。</p>
+<h4 id="2-2-1-libdispatch-187-9"><a href="#2-2-1-libdispatch-187-9" class="headerlink" title="2.2.1 libdispatch-187.9"></a>2.2.1 libdispatch-187.9</h4><p>看下相关代码：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">void</span></span><br><span class="line"><span class="built_in">dispatch_once</span>(<span class="built_in">dispatch_once_t</span> *val, dispatch_block_t block)</span><br><span class="line">&#123;</span><br><span class="line">	<span class="keyword">struct</span> Block_basic *bb = (<span class="keyword">void</span> *)block;</span><br><span class="line"></span><br><span class="line">	dispatch_once_f(val, block, (<span class="keyword">void</span> *)bb-&gt;Block_invoke);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">void</span></span><br><span class="line">_dispatch_once_f(<span class="built_in">dispatch_once_t</span> *predicate, <span class="keyword">void</span> *context,</span><br><span class="line">		dispatch_function_t function)</span><br><span class="line">&#123;</span><br><span class="line">	<span class="keyword">if</span> (DISPATCH_EXPECT(*predicate, ~<span class="number">0</span>l) != ~<span class="number">0</span>l) &#123;</span><br><span class="line">		dispatch_once_f(predicate, context, function);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">void</span></span><br><span class="line">dispatch_once_f(<span class="built_in">dispatch_once_t</span> *val, <span class="keyword">void</span> *ctxt, dispatch_function_t func)</span><br><span class="line">&#123;</span><br><span class="line">	<span class="keyword">struct</span> _dispatch_once_waiter_s * <span class="keyword">volatile</span> *vval =</span><br><span class="line">			(<span class="keyword">struct</span> _dispatch_once_waiter_s**)val;</span><br><span class="line">	<span class="keyword">struct</span> _dispatch_once_waiter_s dow = &#123; <span class="literal">NULL</span>, <span class="number">0</span> &#125;;</span><br><span class="line">	<span class="keyword">struct</span> _dispatch_once_waiter_s *tail, *tmp;</span><br><span class="line">	_dispatch_thread_semaphore_t sema;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (dispatch_atomic_cmpxchg(vval, <span class="literal">NULL</span>, &amp;dow)) &#123;</span><br><span class="line">		dispatch_atomic_acquire_barrier();</span><br><span class="line">		_dispatch_client_callout(ctxt, func);</span><br><span class="line"></span><br><span class="line">		dispatch_atomic_maximally_synchronizing_barrier();</span><br><span class="line">		<span class="comment">//dispatch_atomic_release_barrier(); // assumed contained in above</span></span><br><span class="line">		tmp = dispatch_atomic_xchg(vval, DISPATCH_ONCE_DONE);</span><br><span class="line">		tail = &amp;dow;</span><br><span class="line">		<span class="keyword">while</span> (tail != tmp) &#123;</span><br><span class="line">			<span class="keyword">while</span> (!tmp-&gt;dow_next) &#123;</span><br><span class="line">				_dispatch_hardware_pause();</span><br><span class="line">			&#125;</span><br><span class="line">			sema = tmp-&gt;dow_sema;</span><br><span class="line">			tmp = (<span class="keyword">struct</span> _dispatch_once_waiter_s*)tmp-&gt;dow_next;</span><br><span class="line">			_dispatch_thread_semaphore_signal(sema);</span><br><span class="line">		&#125;</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		dow.dow_sema = _dispatch_get_thread_semaphore();</span><br><span class="line">		<span class="keyword">for</span> (;;) &#123;</span><br><span class="line">			tmp = *vval;</span><br><span class="line">			<span class="keyword">if</span> (tmp == DISPATCH_ONCE_DONE) &#123;</span><br><span class="line">				<span class="keyword">break</span>;</span><br><span class="line">			&#125;</span><br><span class="line">			dispatch_atomic_store_barrier();</span><br><span class="line">			<span class="keyword">if</span> (dispatch_atomic_cmpxchg(vval, tmp, &amp;dow)) &#123;</span><br><span class="line">				dow.dow_next = tmp;</span><br><span class="line">				_dispatch_thread_semaphore_wait(dow.dow_sema);</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">		_dispatch_put_thread_semaphore(dow.dow_sema);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>老版本的libdispatch在写入端的执行block和设置<code>predicate</code>值为<code>DISPATCH_ONCE_DONE</code>中间加入了<code>dispatch_atomic_maximally_synchronizing_barrier();</code>这样一行语句，使得dispatch_once在置<code>predicate</code>的值为done之前，让CPU等待足够长的时间，防止CPU由于预执行到错误的分支而却认为自己执行对了，而继续执行从而导致程序行为异常。</p>
+<blockquote>
+<p>另一个线程B（耗时为Ta）在预执行读取了未初始化的obj值之后，回过头来确认猜测正确性时，predicate可能被执行block的线程A置为了“done”，这就导致线程B误认为自己的预执行有效（实际上它读取了未初始化的值）</p>
+</blockquote>
+<p><code>dispatch_atomic_maximally_synchronizing_barrier()</code>实际上是调用GCC的<code>__sync_synchronize(...)</code>函数发出一个full_barrier，它其实生成了一个的memory_barrier，效率比较低。</p>
+<h4 id="2-2-2-libdispatch-913-1-6"><a href="#2-2-2-libdispatch-913-1-6" class="headerlink" title="2.2.2 libdispatch-913.1.6"></a>2.2.2 libdispatch-913.1.6</h4><p>由于苹果在最新版的Xcode摒弃了GCC，因此新版本的libdispatch中也放弃使用了一些GCC中的操作，比如<code>__sync_synchronize</code>。</p>
+<p>回顾下代码：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">void</span> _dispatch_once_f(<span class="built_in">dispatch_once_t</span> *predicate, <span class="keyword">void</span> *_Nullable context,</span><br><span class="line">		dispatch_function_t function)</span><br><span class="line">&#123;</span><br><span class="line">	<span class="keyword">if</span> (DISPATCH_EXPECT(*predicate, ~<span class="number">0</span>l) != ~<span class="number">0</span>l) &#123;</span><br><span class="line">		dispatch_once_f(predicate, context, function);</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		dispatch_compiler_barrier();</span><br><span class="line">	&#125;</span><br><span class="line">	DISPATCH_COMPILER_CAN_ASSUME(*predicate == ~<span class="number">0</span>l);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>与老版本不同的是，新版本增加了else分支和<code>DISPATCH_COMPILER_CAN_ASSUME</code>语句。</p>
+<p><code>dispatch_compiler_barrier()</code>在GCC编译器下使用<code>__asm__ __volatile__ (&quot;&quot; ::: &quot;memory&quot;)</code>制造一个memory_barrier，但是在Clang-LLVM编译器下，它转换成如下语句：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">do</span> &#123; &#125; <span class="keyword">while</span> (<span class="number">0</span>);</span><br></pre></td></tr></table></figure>
+<p>可以看到，无论CPU预测的分支正确与否，预执行的语句始终被局限在<code>_dispatch_once_f</code>函数中，即使第一次执行<code>dispatch_once</code>时，CPU分支预测错误，预执行了else分支，但是由于else分支中实际上是一句没实际作用的<code>do-while</code>代码，执行它不会对的程序行为产生异常影响。</p>
+<p>这样一来，在<code>dispatch_once_f_slow</code>写入端就可以抛弃效率低下的memory_barrier了，进一步提高了<code>dispatch_once</code>的性能。这种做法相当于使用编译器给程序加了一层barrier，这也许就是<code>dispatch_compiler_barrier</code>命名的由来吧。</p>
+<h3 id="三、总结-amp-参考文献"><a href="#三、总结-amp-参考文献" class="headerlink" title="三、总结&amp;参考文献"></a>三、总结&amp;参考文献</h3><ul>
+<li><a href="https://www.mikeash.com/pyblog/?tag=gcd" target="_blank" rel="noopener">MikeAsh_GCD</a></li>
+<li><a href="http://www.dreamingwish.com/article/gcd-guide-dispatch-once-1.html" target="_blank" rel="noopener">dispatch_once负载探究</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</article>
+
+
+
+    <!-- Footer -->
+<footer>
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+        <p class="copyright text-muted">
+          Theme By <a target="_blank" href="https://github.com/levblanc">Levblanc.</a>
+          Inspired By <a target="_blank" href="https://github.com/klugjo/hexo-theme-clean-blog">Clean Blog.</a>
+        <p class="copyright text-muted">
+          Powered By <a target="_blank" href="https://hexo.io/">Hexo.</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</footer>
+
+
+    <!-- After Footer Scripts -->
+<script src="/js/highlight.pack.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function(event) {
+    var codeBlocks = Array.prototype.slice.call(document.getElementsByTagName('pre'))
+    codeBlocks.forEach(function(block, index) {
+      hljs.highlightBlock(block);
+    });
+  });
+</script>
+
+  </body>
+</html>
+

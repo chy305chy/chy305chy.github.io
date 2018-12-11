@@ -100,7 +100,7 @@
           <!-- Date -->
           <span class="date-time info">On
             <span class="date">2018-12-06</span>
-            <span class="time">17:18:33</span>
+            <span class="time">17:28:36</span>
           </span>
           
           <!--  Categories  -->
@@ -115,7 +115,7 @@
           <div class="post-tags text-muted">
             Tags: 
 
-<a class="tag" href="/tags/Objective-C-libdispatch/">#Objective-C, libdispatch</a>
+<a class="tag" href="/tags/Objective-C-libdispatch-GCD/">#Objective-C, libdispatch, GCD</a>
 
 
           </div>
@@ -126,8 +126,7 @@
 <p>相信大家对上面的代码很熟悉，objective-c中单例的实现离不开dispatch_once。从Swift3.0开始Apple就废弃了dispatch_once：<code>DISPATCH_SWIFT3_UNAVAILABLE(&quot;Use lazily initialized globals instead&quot;)</code>，Swift中的单例写法变成了下面这种写法，由静态不可变变量代替。但是了解dispatch_once的工作原理对我们编写高质量高性能的代码依然有着重要的参考作用。</p>
 <figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> let singleton = TestObject()</span><br><span class="line">private override init() &#123;</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>dispatch_once被广泛使用在OC单例中，它可以保证在多线程程序中，指定的代码只被执行一次。dispatch_once没有使用任何“锁”，但是依然能够保证多线程情况下的线程安全，并且有着优异的性能。</p>
-<h3 id="二、-dispatch-once-f"><a href="#二、-dispatch-once-f" class="headerlink" title="二、_dispatch_once_f"></a>二、_dispatch_once_f</h3><p>dispatch_once函数会调用<code>_dispatch_once_f</code>。</p>
-<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">void</span> _dispatch_once_f(<span class="built_in">dispatch_once_t</span> *predicate, <span class="keyword">void</span> *_Nullable context,</span><br><span class="line">		dispatch_function_t function)</span><br><span class="line">&#123;</span><br><span class="line">	<span class="keyword">if</span> (DISPATCH_EXPECT(*predicate, ~<span class="number">0</span>l) != ~<span class="number">0</span>l) &#123;</span><br><span class="line">		dispatch_once_f(predicate, context, function);</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		dispatch_compiler_barrier();</span><br><span class="line">	&#125;</span><br><span class="line">	DISPATCH_COMPILER_CAN_ASSUME(*predicate == ~<span class="number">0</span>l);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="二、-dispatch-once-f"><a href="#二、-dispatch-once-f" class="headerlink" title="二、_dispatch_once_f"></a>二、_dispatch_once_f</h3><figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">void</span> _dispatch_once_f(<span class="built_in">dispatch_once_t</span> *predicate, <span class="keyword">void</span> *_Nullable context,</span><br><span class="line">		dispatch_function_t function)</span><br><span class="line">&#123;</span><br><span class="line">	<span class="keyword">if</span> (DISPATCH_EXPECT(*predicate, ~<span class="number">0</span>l) != ~<span class="number">0</span>l) &#123;</span><br><span class="line">		dispatch_once_f(predicate, context, function);</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		dispatch_compiler_barrier();</span><br><span class="line">	&#125;</span><br><span class="line">	DISPATCH_COMPILER_CAN_ASSUME(*predicate == ~<span class="number">0</span>l);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>predicate是<code>dispatch_once_t</code>类型的指针，用来指示block代码是否执行完毕。其实<code>dispatch_once_t</code>就是<code>long</code>类型：</p>
 <figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="keyword">long</span> <span class="built_in">dispatch_once_t</span>;</span><br></pre></td></tr></table></figure>
 <p>这个函数的核心就是if-else语句，<code>DISPATCH_EXPECT</code>告诉编译器predict的期待值是<code>~0l</code>，由编译器对代码进行优化，如果predicate != ~0l，说明block语句尚未执行过，进入<code>dispatch_once_f_slow</code>函数，进行一些操作，如：执行block，线程等待、block执行完成后唤醒等待线程等。否则，执行<code>dispatch_compiler_barrier</code>。这个if-else语句涉到了CPU的分支预测和指令预执行，放到下篇讲。</p>
