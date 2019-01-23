@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next pisces use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Objective-C, Crash分析," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="由于测试用例不可能覆盖到所有情况，因此，上线后面对复杂的用户环境和用户操作，难免出现一些crash问题。crash也是很影响用户体验的，常见的crash异常信息有：  EXEC_BAD_ACCESS (SIGSEGV/SIGBUS)，发生在程序试图房屋无效的内存或试图以内存的保护级别所不允许的方式去访问内存的时候； EXEC_CRASH (SIGABRT)，异常退出，比如：如果程序初始化时间过长而">
+<meta name="keywords" content="Objective-C, Crash分析">
+<meta property="og:type" content="article">
+<meta property="og:title" content="一个objc_retain+16的crash问题分析">
+<meta property="og:url" content="https://chy305chy.github.io/2018/12/18/一个objc-retain-16的crash问题分析/index.html">
+<meta property="og:site_name" content="崔岚清的个人博客">
+<meta property="og:description" content="由于测试用例不可能覆盖到所有情况，因此，上线后面对复杂的用户环境和用户操作，难免出现一些crash问题。crash也是很影响用户体验的，常见的crash异常信息有：  EXEC_BAD_ACCESS (SIGSEGV/SIGBUS)，发生在程序试图房屋无效的内存或试图以内存的保护级别所不允许的方式去访问内存的时候； EXEC_CRASH (SIGABRT)，异常退出，比如：如果程序初始化时间过长而">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2018-12-18T06:50:52.265Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="一个objc_retain+16的crash问题分析">
+<meta name="twitter:description" content="由于测试用例不可能覆盖到所有情况，因此，上线后面对复杂的用户环境和用户操作，难免出现一些crash问题。crash也是很影响用户体验的，常见的crash异常信息有：  EXEC_BAD_ACCESS (SIGSEGV/SIGBUS)，发生在程序试图房屋无效的内存或试图以内存的保护级别所不允许的方式去访问内存的时候； EXEC_CRASH (SIGABRT)，异常退出，比如：如果程序初始化时间过长而">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://chy305chy.github.io/2018/12/18/一个objc-retain-16的crash问题分析/"/>
+
+
+
+
+
+  <title>一个objc_retain+16的crash问题分析 | 崔岚清的个人博客</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">崔岚清的个人博客</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">集跬步至千里，积小流成江海</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://chy305chy.github.io/2018/12/18/一个objc-retain-16的crash问题分析/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Cui Lanqing">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="崔岚清的个人博客">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">一个objc_retain+16的crash问题分析</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-12-18T13:59:59+08:00">
+                2018-12-18
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/iOS开发/" itemprop="url" rel="index">
+                    <span itemprop="name">iOS开发</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+                <a href="/2018/12/18/一个objc-retain-16的crash问题分析/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count valine-comment-count" data-xid="/2018/12/18/一个objc-retain-16的crash问题分析/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>由于测试用例不可能覆盖到所有情况，因此，上线后面对复杂的用户环境和用户操作，难免出现一些crash问题。crash也是很影响用户体验的，常见的crash异常信息有：</p>
+<ul>
+<li>EXEC_BAD_ACCESS (SIGSEGV/SIGBUS)，发生在程序试图房屋无效的内存或试图以内存的保护级别所不允许的方式去访问内存的时候；</li>
+<li>EXEC_CRASH (SIGABRT)，异常退出，比如：如果程序初始化时间过长而触发了watch dog，被强制终止，会产生这类异常；</li>
+<li>EXC_BAD_INSTRUCTION (SIGILL)，程序执行非法指令时，或者堆栈溢出时会报非法指令异常；</li>
+<li>EXC_RESOURCE，程序消耗的资源过多超过了限制，这是一个从操作系统通知,进程是使用太多的资源。这虽然不是崩溃但也会生成崩溃日志。</li>
+</ul>
+<p>其他的异常信息有：</p>
+<ul>
+<li>0x8badf00d，读起来像：ate bad food，该编码表示应用是因为发生watchdog超时而被iOS终止的。 通常是应用花费太多时间而无法启动、终止或响应用系统事件。</li>
+<li>0xbad22222，VoIP 应用因为过于频繁重启而被终止。</li>
+<li>0xdead10cc，读起来像：dead lock，应用因为在后台运行时占用系统资源，如通讯录数据库不释放而被终止。</li>
+<li>0xdeadfa11，读起来像：dead fall，应用被用户强制退出。</li>
+</ul>
+<h4 id="crash-log"><a href="#crash-log" class="headerlink" title="crash log"></a>crash log</h4><p>App上线后，遇到这样一个crash，测试时未发现。先看下crash日志，略去无用信息。</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br></pre></td><td class="code"><pre><span class="line">Incident Identifier: <span class="number">86</span>D40C68<span class="number">-5158</span><span class="number">-436</span>E-A619-AB19A8E7006C</span><br><span class="line">CrashReporter Key:   <span class="number">82</span>b59c10d300ce0f26b67acba78caf0bb632483c</span><br><span class="line">Hardware Model:      iPhone10,<span class="number">3</span></span><br><span class="line">Process:         ***** [<span class="number">5374</span>]</span><br><span class="line">Path:            /var/containers/Bundle/Application/BBEFF30F<span class="number">-9</span>DBD<span class="number">-41</span>AC-AC2D<span class="number">-76479532E149</span>/GWMovie.app/GWMovie</span><br><span class="line">Identifier:      **********</span><br><span class="line">Version:         <span class="number">9.4</span><span class="number">.1</span> (<span class="number">9407</span>)</span><br><span class="line">Code Type:       ARM<span class="number">-64</span></span><br><span class="line">Parent Process:  ? [<span class="number">1</span>]</span><br><span class="line"></span><br><span class="line">Date/Time:       <span class="number">2018</span><span class="number">-12</span><span class="number">-15</span> <span class="number">19</span>:<span class="number">09</span>:<span class="number">04.000</span> +<span class="number">0800</span></span><br><span class="line">OS Version:      iOS <span class="number">12.1</span> (<span class="number">16</span>B92)</span><br><span class="line">Report Version:  <span class="number">104</span></span><br><span class="line"></span><br><span class="line">Exception Type:  EXC_BAD_ACCESS (SIGBUS)</span><br><span class="line">Exception Codes: KERN_EXCEPTION_PROTECTED at <span class="number">0x0000000000000020</span></span><br><span class="line">Crashed Thread:  <span class="number">0</span></span><br><span class="line"></span><br><span class="line">Thread <span class="number">0</span> Crashed:</span><br><span class="line"><span class="number">0</span>   libobjc.A.dylib                 objc_retain + <span class="number">16</span></span><br><span class="line"><span class="number">1</span>   QuartzCore                      CA::AttrList::set(<span class="keyword">unsigned</span> <span class="keyword">int</span>, _CAValueType, <span class="keyword">void</span> <span class="keyword">const</span>*) + <span class="number">464</span></span><br><span class="line"><span class="number">2</span>   QuartzCore                      <span class="built_in">CAAnimation_setter</span>(<span class="built_in">CAAnimation</span>*, <span class="keyword">unsigned</span> <span class="keyword">int</span>, _CAValueType, <span class="keyword">void</span> <span class="keyword">const</span>*) + <span class="number">232</span></span><br><span class="line"><span class="number">3</span>   QuartzCore                      -[<span class="built_in">CAAnimation</span> setDelegate:] + <span class="number">48</span></span><br><span class="line"><span class="number">4</span>   <span class="built_in">UIKitCore</span>                       -[<span class="built_in">UIViewAnimationState</span> setAnimationAttributes:correctZeroDuration:skipDelegateAssignment:customCurve:] + <span class="number">876</span></span><br><span class="line"><span class="number">5</span>   <span class="built_in">UIKitCore</span>                       -[<span class="built_in">UIViewAnimationState</span> animationForLayer:forKey:forView:] + <span class="number">1184</span></span><br><span class="line"><span class="number">6</span>   <span class="built_in">UIKitCore</span>                       -[<span class="built_in">UIViewAnimationState</span> actionForLayer:forKey:forView:] + <span class="number">120</span></span><br><span class="line"><span class="number">7</span>   <span class="built_in">UIKitCore</span>                       +[<span class="built_in">UIView</span>(Animation) _defaultUIViewActionForLayer:forKey:] + <span class="number">112</span></span><br><span class="line"><span class="number">8</span>   <span class="built_in">UIKitCore</span>                       -[<span class="built_in">UIView</span>(<span class="built_in">UIKitManual</span>) actionForLayer:forKey:] + <span class="number">312</span></span><br><span class="line"><span class="number">9</span>   QuartzCore                      -[<span class="built_in">CALayer</span> actionForKey:] + <span class="number">136</span></span><br><span class="line"><span class="number">10</span>  QuartzCore                      CA::Layer::begin_change(CA::Transaction*, <span class="keyword">unsigned</span> <span class="keyword">int</span>, objc_object*, objc_object*&amp;) + <span class="number">200</span></span><br><span class="line"><span class="number">11</span>  QuartzCore                      CA::Layer::<span class="keyword">setter</span>(<span class="keyword">unsigned</span> <span class="keyword">int</span>, _CAValueType, <span class="keyword">void</span> <span class="keyword">const</span>*) + <span class="number">312</span></span><br><span class="line"><span class="number">12</span>  QuartzCore                      -[<span class="built_in">CALayer</span> setContentsMultiplyColor:] + <span class="number">64</span></span><br><span class="line"><span class="number">13</span>  <span class="built_in">UIKitCore</span>                       -[_UILabelLayer setContentsMultiplyColor:] + <span class="number">60</span></span><br><span class="line"><span class="number">14</span>  <span class="built_in">UIKitCore</span>                       <span class="built_in">UILabelCommonInit</span> + <span class="number">204</span></span><br><span class="line"><span class="number">15</span>  <span class="built_in">UIKitCore</span>                       -[<span class="built_in">UILabel</span> initWithFrame:] + <span class="number">60</span></span><br><span class="line"><span class="number">16</span>  GWMovie                         -[GWHomePosterButtonView loadAllControls] (GWHomePosterButtonView.m:<span class="number">89</span>)</span><br><span class="line"><span class="number">17</span>  GWMovie                         -[GWHomePosterButtonView initWithFrame:] (GWHomePosterButtonView.m:<span class="number">109</span>)</span><br><span class="line"><span class="number">18</span>  GWMovie                         -[GWHomeBaseClassView loadAllControls] (GWHomeBaseClassView.m:<span class="number">102</span>)</span><br><span class="line"><span class="number">19</span>  GWMovie                         -[GWHomeBaseClassView initWithFrame:] (GWHomeBaseClassView.m:<span class="number">153</span>)</span><br><span class="line"><span class="number">20</span>  GWMovie                         -[GWHomeDramaBaseClassView initWithFrame:] (GWHomeDramaBaseClassView.m:<span class="number">176</span>)</span><br><span class="line"><span class="number">21</span>  GWMovie                         -[GWHomeDramaTableViewCell dramaCardView] (GWHomeDramaTableViewCell.m:<span class="number">125</span>)</span><br><span class="line"><span class="number">22</span>  GWMovie                         -[GWHomeViewController tableView:cellForRowAtIndexPath:] (GWHomeViewController.m:<span class="number">377</span>)</span><br><span class="line"><span class="number">23</span>  <span class="built_in">UIKitCore</span>                       -[<span class="built_in">UITableView</span> _createPreparedCellForGlobalRow:withIndexPath:willDisplay:] + <span class="number">684</span></span><br><span class="line"><span class="number">24</span>  <span class="built_in">UIKitCore</span>                       -[<span class="built_in">UITableView</span> _createPreparedCellForGlobalRow:willDisplay:] + <span class="number">80</span></span><br><span class="line"><span class="number">25</span>  <span class="built_in">UIKitCore</span>                       -[<span class="built_in">UITableView</span> _updateVisibleCellsNow:isRecursive:] + <span class="number">2256</span></span><br><span class="line"><span class="number">26</span>  <span class="built_in">UIKitCore</span>                       -[<span class="built_in">UITableView</span> layoutSubviews] + <span class="number">140</span></span><br><span class="line"><span class="number">27</span>  <span class="built_in">UIKitCore</span>                       -[<span class="built_in">UIView</span>(<span class="built_in">CALayerDelegate</span>) layoutSublayersOfLayer:] + <span class="number">1380</span></span><br><span class="line"><span class="number">28</span>  QuartzCore                      -[<span class="built_in">CALayer</span> layoutSublayers] + <span class="number">184</span></span><br><span class="line"><span class="number">29</span>  QuartzCore                      CA::Layer::layout_if_needed(CA::Transaction*) + <span class="number">324</span></span><br><span class="line"><span class="number">30</span>  QuartzCore                      CA::Context::commit_transaction(CA::Transaction*) + <span class="number">340</span></span><br><span class="line"><span class="number">31</span>  QuartzCore                      CA::Transaction::commit() + <span class="number">608</span></span><br><span class="line"><span class="number">32</span>  QuartzCore                      CA::Transaction::observer_callback(__CFRunLoopObserver*, <span class="keyword">unsigned</span> <span class="keyword">long</span>, <span class="keyword">void</span>*) + <span class="number">92</span></span><br><span class="line"><span class="number">33</span>  CoreFoundation                  __CFRUNLOOP_IS_CALLING_OUT_TO_AN_OBSERVER_CALLBACK_FUNCTION__ + <span class="number">32</span></span><br><span class="line"><span class="number">34</span>  CoreFoundation                  __CFRunLoopDoObservers + <span class="number">412</span></span><br><span class="line"><span class="number">35</span>  CoreFoundation                  __CFRunLoopRun + <span class="number">1264</span></span><br><span class="line"><span class="number">36</span>  CoreFoundation                  <span class="built_in">CFRunLoopRunSpecific</span> + <span class="number">436</span></span><br><span class="line"><span class="number">37</span>  GraphicsServices                GSEventRunModal + <span class="number">100</span></span><br><span class="line"><span class="number">38</span>  <span class="built_in">UIKitCore</span>                       <span class="built_in">UIApplicationMain</span> + <span class="number">212</span></span><br><span class="line"><span class="number">39</span>  GWMovie                         main (main.m:<span class="number">16</span>)</span><br><span class="line"><span class="number">40</span>  libdyld.dylib                   start + <span class="number">4</span></span><br><span class="line"></span><br><span class="line">...</span><br><span class="line">...</span><br><span class="line">...</span><br><span class="line"></span><br><span class="line">Thread <span class="number">0</span> crashed with ARM<span class="number">-64</span> Thread State:</span><br><span class="line">  cpsr: <span class="number">0x00000000a0000000</span>     fp: <span class="number">0x000000016ae03800</span>     lr: <span class="number">0x00000001bbceb3e8</span>     pc: <span class="number">0x00000001b6881430</span> </span><br><span class="line">    sp: <span class="number">0x000000016ae037c0</span>     x0: <span class="number">0x00000001078e22b0</span>     x1: <span class="number">0x0000000000000002</span>    x10: <span class="number">0x00000001f127e100</span> </span><br><span class="line">   x11: <span class="number">0x0000000000000354</span>    x12: <span class="number">0x0000000000000154</span>    x13: <span class="number">0x0000000000000154</span>    x14: <span class="number">0x000000000000007f</span> </span><br><span class="line">   x15: <span class="number">0x00000000ffffffe8</span>    x16: <span class="number">0x00000001b72a39e4</span>    x17: <span class="number">0x0000010000000100</span>    x18: <span class="number">0x0000000000000000</span> </span><br><span class="line">   x19: <span class="number">0x0000000107b345b0</span>     x2: <span class="number">0x0000000000000303</span>    x20: <span class="number">0x00000001078e22b0</span>    x21: <span class="number">0x0000000107b34e60</span> </span><br><span class="line">   x22: <span class="number">0x0000000000000002</span>    x23: <span class="number">0x000000000000008c</span>    x24: <span class="number">0x0000000107b345b8</span>    x25: <span class="number">0x0000000107b34bd0</span> </span><br><span class="line">   x26: <span class="number">0x0000000282a1cc60</span>    x27: <span class="number">0x0000000000000000</span>    x28: <span class="number">0x0000000106ff3d10</span>    x29: <span class="number">0x000000016ae03800</span> </span><br><span class="line">    x3: <span class="number">0x0000000000000002</span>     x4: <span class="number">0x0000000000000000</span>     x5: <span class="number">0x0000000000000000</span>     x6: <span class="number">0x000000016ae036a0</span> </span><br><span class="line">    x7: <span class="number">0x0000000000000000</span>     x8: <span class="number">0x0000000000000000</span>     x9: <span class="number">0x00000001f127a070</span></span><br></pre></td></tr></table></figure>
+<p>先看下崩溃类型是EXC_BAD_ACCESS，第一反应可能是对象被提前释放了导致读到了错误的内存。<br>看下崩溃线程的堆栈信息，crash发生在main thread的objc_retain函数的第16条指令。</p>
+<p>使用<code>disassemble</code>命令将objc_retain转换为汇编代码：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">libobjc.A.dylib`objc_retain:</span><br><span class="line">    <span class="number">0x1b53cd420</span> &lt;+<span class="number">0</span>&gt;:  <span class="number">0xb40001a0</span>   cbz    x0, <span class="number">0x1b53cd454</span>           ; &lt;+<span class="number">52</span>&gt;</span><br><span class="line">    <span class="number">0x1b53cd424</span> &lt;+<span class="number">4</span>&gt;:  <span class="number">0xb7f80180</span>   tbnz   x0, <span class="meta">#0x3f, 0x1b53cd454    ; <span class="meta-string">&lt;+52&gt;</span></span></span><br><span class="line">    <span class="number">0x1b53cd428</span> &lt;+<span class="number">8</span>&gt;:  <span class="number">0xf9400008</span>   ldr    x8, [x0]</span><br><span class="line">    <span class="number">0x1b53cd42c</span> &lt;+<span class="number">12</span>&gt;: <span class="number">0x927d8108</span>   and    x8, x8, <span class="meta">#0xffffffff8</span></span><br><span class="line">    <span class="number">0x1b53cd430</span> &lt;+<span class="number">16</span>&gt;: <span class="number">0x39408108</span>   ldrb   w8, [x8, <span class="meta">#0x20]</span></span><br><span class="line">    <span class="number">0x1b53cd434</span> &lt;+<span class="number">20</span>&gt;: <span class="number">0x36100128</span>   tbz    w8, <span class="meta">#0x2, 0x1b53cd458     ; <span class="meta-string">&lt;+56&gt;</span></span></span><br><span class="line">    <span class="number">0x1b53cd438</span> &lt;+<span class="number">24</span>&gt;: <span class="number">0xb25303e8</span>   orr    x8, xzr, <span class="meta">#0x200000000000</span></span><br><span class="line">    <span class="number">0x1b53cd43c</span> &lt;+<span class="number">28</span>&gt;: <span class="number">0xc85f7c09</span>   ldxr   x9, [x0]</span><br><span class="line">    <span class="number">0x1b53cd440</span> &lt;+<span class="number">32</span>&gt;: <span class="number">0x36000149</span>   tbz    w9, <span class="meta">#0x0, 0x1b53cd468     ; <span class="meta-string">&lt;+72&gt;</span></span></span><br><span class="line">    <span class="number">0x1b53cd444</span> &lt;+<span class="number">36</span>&gt;: <span class="number">0xab080129</span>   adds   x9, x9, x8</span><br><span class="line">    <span class="number">0x1b53cd448</span> &lt;+<span class="number">40</span>&gt;: <span class="number">0x54000142</span>   b.hs   <span class="number">0x1b53cd470</span>               ; &lt;+<span class="number">80</span>&gt;</span><br><span class="line">    <span class="number">0x1b53cd44c</span> &lt;+<span class="number">44</span>&gt;: <span class="number">0xc80a7c09</span>   stxr   w10, x9, [x0]</span><br><span class="line">    <span class="number">0x1b53cd450</span> &lt;+<span class="number">48</span>&gt;: <span class="number">0x35ffff6a</span>   cbnz   w10, <span class="number">0x1b53cd43c</span>          ; &lt;+<span class="number">28</span>&gt;</span><br><span class="line">    <span class="number">0x1b53cd454</span> &lt;+<span class="number">52</span>&gt;: <span class="number">0xd65f03c0</span>   ret    </span><br><span class="line">    <span class="number">0x1b53cd458</span> &lt;+<span class="number">56</span>&gt;: <span class="number">0xd01d0348</span>   adrp   x8, <span class="number">237674</span></span><br><span class="line">    <span class="number">0x1b53cd45c</span> &lt;+<span class="number">60</span>&gt;: <span class="number">0x913c8108</span>   add    x8, x8, <span class="meta">#0xf20            ; =0xf20 </span></span><br><span class="line">    <span class="number">0x1b53cd460</span> &lt;+<span class="number">64</span>&gt;: <span class="number">0xf9400101</span>   ldr    x1, [x8]</span><br><span class="line">    <span class="number">0x1b53cd464</span> &lt;+<span class="number">68</span>&gt;: <span class="number">0x17fffe3f</span>   b      <span class="number">0x1b53ccd60</span>               ; objc_msgSend</span><br><span class="line">    <span class="number">0x1b53cd468</span> &lt;+<span class="number">72</span>&gt;: <span class="number">0xd5033f5f</span>   clrex  </span><br><span class="line">    <span class="number">0x1b53cd46c</span> &lt;+<span class="number">76</span>&gt;: <span class="number">0x140003ea</span>   b      <span class="number">0x1b53ce414</span>               ; objc_object::sidetable_retain()</span><br><span class="line">    <span class="number">0x1b53cd470</span> &lt;+<span class="number">80</span>&gt;: <span class="number">0xd5033f5f</span>   clrex  </span><br><span class="line">    <span class="number">0x1b53cd474</span> &lt;+<span class="number">84</span>&gt;: <span class="number">0x52800001</span>   mov    w1, <span class="meta">#0x0</span></span><br><span class="line">    <span class="number">0x1b53cd478</span> &lt;+<span class="number">88</span>&gt;: <span class="number">0x14000a05</span>   b      <span class="number">0x1b53cfc8c</span>               ; objc_object::rootRetain_overflow(<span class="keyword">bool</span>)</span><br></pre></td></tr></table></figure>
+<p>取前后几条相关的指令：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0x1b53cd428</span> &lt;+<span class="number">8</span>&gt;:  <span class="number">0xf9400008</span>   ldr    x8, [x0]</span><br><span class="line"><span class="number">0x1b53cd42c</span> &lt;+<span class="number">12</span>&gt;: <span class="number">0x927d8108</span>   and    x8, x8, <span class="meta">#0xffffffff8</span></span><br><span class="line"><span class="number">0x1b53cd430</span> &lt;+<span class="number">16</span>&gt;: <span class="number">0x39408108</span>   ldrb   w8, [x8, <span class="meta">#0x20]</span></span><br></pre></td></tr></table></figure>
+<p>熟悉objective-c消息发送<code>objc_msgSend</code>函数的同学应该对这三条指令不陌生，有关<code>objc_msgSend</code>函数的分析，有兴趣的同学可以看我的这篇文章：<a href="https://chy305chy.github.io/2018/08/14/%E4%BB%8E%E4%B8%80%E4%B8%AABUG%E8%B0%88%E8%B5%B7%EF%BC%8C%E5%89%96%E6%9E%90objc-msgSend%E5%87%BD%E6%95%B0%E7%9A%84%E5%BA%95%E5%B1%82%E5%AE%9E%E7%8E%B0/">objc_msgSend分析</a></p>
+<p>回到<code>objc_retain</code>函数中，这三条指令的作用是：</p>
+<ol>
+<li>当前x0中存的是消息receiver的对象的地址，加载其第一个64bit（即<code>isa</code>指针）到x8寄存器中</li>
+<li>通过<code>isa</code>指针与<code>0xffffffff8</code>得到receiver所属的Class对象<code>obj_class</code>，并将其保存到x8寄存器中</li>
+<li>从Class对象首地址+32处(<code>[x8, #0x20]</code>)加载数据到x8寄存器的低32位。</li>
+</ol>
+<p>看下crash log中有关x8寄存器的内容：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">x8: <span class="number">0x0000000000000000</span></span><br></pre></td></tr></table></figure>
+<p>因此，第三条指令<code>ldrb</code>读到了<code>0x20</code>内存地址的内容，但是<code>0x20</code>地址是操作系统保留地址，因此crash code为：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Exception Codes: KERN_EXCEPTION_PROTECTED at <span class="number">0x0000000000000020</span></span><br></pre></td></tr></table></figure>
+<h4 id="原因"><a href="#原因" class="headerlink" title="原因"></a>原因</h4><p>通过分析crash log系统收集的其他相关crash日志发现，该bug导致的crash集中发生在同一个类中的<code>[UIView setBackgroundColor]</code>、<code>initWithFrame:</code>等处。同样也会导致<code>objc_msgSend + 16</code>的<code>EXEC_BAD_ACCESS</code>类型的crash。</p>
+<p>我们知道，iOS的隐式动画会统一由CATransaction收集并在当前线程的下一个runloop中统一提交。但是如果下一个runloop中执行动画时，与之关联的<code>UIView/CALayer</code>已经释放了，就会发生野指针错误。</p>
+<p>但是查看相关代码，并没有发现<code>UIView/CALayer</code>被提前释放的相关代码，那是什么原因呢？</p>
+<p>根据苹果的文档，UIKit相关操作必须在主线程中进行，否则可能导致程序异常，那么会不会是子线程刷新UI造成的呢？</p>
+<p>查看源码发现一句调用层级比较深的代码：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">dispatch_async</span>(dispatch_queue_create(<span class="string">"HomeDataRequest"</span>, <span class="literal">NULL</span>), ^&#123;</span><br><span class="line">    ...</span><br><span class="line">    ...</span><br><span class="line">    [<span class="keyword">self</span>.homeTableView refreshTableView];</span><br><span class="line">    ...</span><br><span class="line">    ...</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p>这里在后台线程中进行了reload tableView的操作。改到主线程中刷新就好了。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Objective-C-Crash分析/" rel="tag"># Objective-C, Crash分析</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2018/12/10/GCD源码分析（四）——dispatch-once-下/" rel="next" title="GCD源码分析（四）——dispatch_once(下)">
+                <i class="fa fa-chevron-left"></i> GCD源码分析（四）——dispatch_once(下)
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/01/18/iOS-Runtime随笔——weak原理探究/" rel="prev" title="iOS Runtime随笔——weak原理探究">
+                iOS Runtime随笔——weak原理探究 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+    <div class="comments" id="comments">
+    </div>
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Cui Lanqing</p>
+              <p class="site-description motion-element" itemprop="description">一枚有梦想的程序猿</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives">
+              
+                  <span class="site-state-item-count">12</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">10</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#crash-log"><span class="nav-number">1.</span> <span class="nav-text">crash log</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#原因"><span class="nav-number">2.</span> <span class="nav-text">原因</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+<div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Cui Lanqing</span>
+
+  
+</div>
+
+
+  <div class="powered-by">
+    <i class="fa fa-user-md"></i><span id="busuanzi_container_site_uv">
+    本站访客数:<span id="busuanzi_value_site_uv"></span>
+  </span>
+  </div>
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Pisces</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  <script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+  <script src="//unpkg.com/valine/dist/Valine.min.js"></script>
+  
+  <script type="text/javascript">
+    var GUEST = ['nick','mail','link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item=>{
+      return GUEST.indexOf(item)>-1;
+    });
+    new Valine({
+        el: '#comments' ,
+        verify: false,
+        notify: false,
+        appId: 'WCdYKBzVHyUAmYLBFSD0S1EM-gzGzoHsz',
+        appKey: 'TeFriUwpGPw3n0GaJ9PSdzEh',
+        placeholder: 'Just go go',
+        avatar:'mm',
+        guest_info:guest,
+        pageSize:'10' || 10,
+    });
+  </script>
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
