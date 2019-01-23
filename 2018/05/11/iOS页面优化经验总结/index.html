@@ -1,128 +1,361 @@
 <!DOCTYPE html>
-<html>
-  <!-- Html Head Tag-->
-  <head>
-  <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="">
-  <meta name="author" content="Cui Lanqing">
-  <!-- Open Graph Data -->
-  <meta property="og:title" content="iOS页面优化经验总结"/>
-  <meta property="og:description" content="一枚有梦想的程序猿" />
-  <meta property="og:site_name" content="崔岚清的个人博客"/>
-  <meta property="og:type" content="article" />
-  <meta property="og:image" content="http://yoursite.com"/>
-  
-    <link rel="alternate" href="/atom.xml" title="崔岚清的个人博客" type="application/atom+xml">
-  
-  
-    <link rel="icon" href="/favicon.png">
+
+
+
   
 
-  <!-- Site Title -->
-  <title>崔岚清的个人博客</title>
 
-  <!-- Bootstrap CSS -->
-  <link rel="stylesheet" href="/css/bootstrap.min.css">
-  <!-- Custom CSS -->
-  
-  <link rel="stylesheet" href="/css/style.light.css">
+<html class="theme-next pisces use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
 
-  <!-- Google Analytics -->
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Objective-C, UIKit, 性能优化," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="一、前言 前段时间接到了一个页面优化任务，一个选座的页面，要求峰值支持100*100个座位，并提高页面滑动的流畅度、内存占用率和加载速度等指标前前后后做了一个月左右的时间，这里总结一下优化经验以供参考。 二、分析问题 1、该页面的问题所在之前该页面的是由一系列UIButton结合drawRect实现，在从服务器拉取到数据后，计算出每个座位的frame并在相应的位置创建一个button代表该座位，所">
+<meta name="keywords" content="Objective-C, UIKit, 性能优化">
+<meta property="og:type" content="article">
+<meta property="og:title" content="iOS页面优化经验总结">
+<meta property="og:url" content="https://chy305chy.github.io/2018/05/11/iOS页面优化经验总结/index.html">
+<meta property="og:site_name" content="崔岚清的个人博客">
+<meta property="og:description" content="一、前言 前段时间接到了一个页面优化任务，一个选座的页面，要求峰值支持100*100个座位，并提高页面滑动的流畅度、内存占用率和加载速度等指标前前后后做了一个月左右的时间，这里总结一下优化经验以供参考。 二、分析问题 1、该页面的问题所在之前该页面的是由一系列UIButton结合drawRect实现，在从服务器拉取到数据后，计算出每个座位的frame并在相应的位置创建一个button代表该座位，所">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="https://chy305chy.github.io/2018/05/11/iOS页面优化经验总结/1.png">
+<meta property="og:image" content="https://chy305chy.github.io/2018/05/11/iOS页面优化经验总结/2.png">
+<meta property="og:updated_time" content="2018-05-21T12:10:02.784Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="iOS页面优化经验总结">
+<meta name="twitter:description" content="一、前言 前段时间接到了一个页面优化任务，一个选座的页面，要求峰值支持100*100个座位，并提高页面滑动的流畅度、内存占用率和加载速度等指标前前后后做了一个月左右的时间，这里总结一下优化经验以供参考。 二、分析问题 1、该页面的问题所在之前该页面的是由一系列UIButton结合drawRect实现，在从服务器拉取到数据后，计算出每个座位的frame并在相应的位置创建一个button代表该座位，所">
+<meta name="twitter:image" content="https://chy305chy.github.io/2018/05/11/iOS页面优化经验总结/1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://chy305chy.github.io/2018/05/11/iOS页面优化经验总结/"/>
+
+
+
+
+
+  <title>iOS页面优化经验总结 | 崔岚清的个人博客</title>
+  
+
+
+
+
+
+
+
 
 </head>
 
-  <body>
-    <!-- Page Header -->
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
 
+  
+  
+    
+  
 
-<header class="site-header header-background" style="background-image: url(/img/default-banner-light.jpg)">
-  <div class="container">
-    <div class="row">
-      <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
-        <div class="page-title with-background-image">
-          <p class="title">iOS页面优化经验总结</p>
-          <p class="subtitle"></p>
-        </div>
-        <div class="site-menu with-background-image">
-          <ul>
-            
-              <li>
-                <a href="/">
-                  
-                  Home
-                  
-                </a>
-              </li>
-            
-              <li>
-                <a href="/archives">
-                  
-                  Archives
-                  
-                </a>
-              </li>
-            
-              <li>
-                <a href="https://github.com/<your-github-username>">
-                  
-                  Github
-                  
-                </a>
-              </li>
-            
-              <li>
-                <a href="mailto:<your-email-address>">
-                  
-                  Email
-                  
-                </a>
-              </li>
-            
-          </ul>
-        </div>
-      </div>
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">崔岚清的个人博客</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
     </div>
+      
+        <p class="site-subtitle">集跬步至千里，积小流成江海</p>
+      
   </div>
-</header>
 
-<article>
-  <div class="container typo">
-    <div class="row">
-      <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
-        <div class="post-info text-muted">
-          
-            <!-- Author -->
-            <span class="author info">By Cui Lanqing</span>
-          
-          <!-- Date -->
-          <span class="date-time info">On
-            <span class="date">2018-05-11</span>
-            <span class="time">16:17:53</span>
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://chy305chy.github.io/2018/05/11/iOS页面优化经验总结/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Cui Lanqing">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="崔岚清的个人博客">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">iOS页面优化经验总结</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-11T11:30:06+08:00">
+                2018-05-11
+              </time>
+            
+
+            
+
+            
           </span>
-          
-          <!--  Categories  -->
-            <span class="categories info">Under 
 
-<a href="/categories/iOS开发/">iOS开发</a>
-</span>
           
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/iOS开发/" itemprop="url" rel="index">
+                    <span itemprop="name">iOS开发</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+                <a href="/2018/05/11/iOS页面优化经验总结/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count valine-comment-count" data-xid="/2018/05/11/iOS页面优化经验总结/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
         </div>
-        <!-- Tags -->
-        
-          <div class="post-tags text-muted">
-            Tags: 
+      </header>
+    
 
-<a class="tag" href="/tags/Objective-C-UIKit-性能优化/">#Objective-C, UIKit, 性能优化</a>
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
 
+      
+      
 
-          </div>
-        
-        <!-- Post Main Content -->
-        <div class="post-content">
-          <h3 id="一、前言"><a href="#一、前言" class="headerlink" title="一、前言"></a>一、前言</h3><hr>
+      
+        <h3 id="一、前言"><a href="#一、前言" class="headerlink" title="一、前言"></a>一、前言</h3><hr>
 <p>前段时间接到了一个页面优化任务，一个选座的页面，要求峰值支持100*100个座位，并提高页面滑动的流畅度、内存占用率和加载速度等指标<br><img src="/2018/05/11/iOS页面优化经验总结/1.png" alt="页面样式"><br>前前后后做了一个月左右的时间，这里总结一下优化经验以供参考。</p>
 <h3 id="二、分析问题"><a href="#二、分析问题" class="headerlink" title="二、分析问题"></a>二、分析问题</h3><hr>
 <h5 id="1、该页面的问题所在"><a href="#1、该页面的问题所在" class="headerlink" title="1、该页面的问题所在"></a>1、该页面的问题所在</h5><p>之前该页面的是由一系列UIButton结合drawRect实现，在从服务器拉取到数据后，计算出每个座位的frame并在相应的位置创建一个button代表该座位，所有座位加载完成后在左上角显示整体座位的缩略图。</p>
@@ -254,42 +487,421 @@
 </table>
 <p>优化前，进入选座页面后，数据加载完后要等待3s左右才能进行操作，在此期间App卡住且不响应任何用户操作；<br>优化后，进入选座页面后，数据加载完后可以立即响应用户操作，不存在卡顿时间。</p>
 
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Objective-C-UIKit-性能优化/" rel="tag"># Objective-C, UIKit, 性能优化</a>
+          
         </div>
-      </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2018/04/14/Reactive-Cocoa中-weakify、-strongify的原理以及如何避免block中的retain-cycle/" rel="next" title="RAC中@weakify、@strongify的原理以及如何避免block中的retain cycle">
+                <i class="fa fa-chevron-left"></i> RAC中@weakify、@strongify的原理以及如何避免block中的retain cycle
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2018/06/03/最长回文子串的4种解法（swift实现）/" rel="prev" title="最长回文子串的4种解法（swift实现）">
+                最长回文子串的4种解法（swift实现） <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
     </div>
   </div>
-</article>
+
+
+          </div>
+          
+
+
+          
+
+  
+    <div class="comments" id="comments">
+    </div>
+  
 
 
 
-    <!-- Footer -->
-<footer>
-  <div class="container">
-    <div class="row">
-      <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
-        <p class="copyright text-muted">
-          Theme By <a target="_blank" href="https://github.com/levblanc">Levblanc.</a>
-          Inspired By <a target="_blank" href="https://github.com/klugjo/hexo-theme-clean-blog">Clean Blog.</a>
-        <p class="copyright text-muted">
-          Powered By <a target="_blank" href="https://hexo.io/">Hexo.</a>
-        </p>
-      </div>
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
     </div>
   </div>
-</footer>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Cui Lanqing</p>
+              <p class="site-description motion-element" itemprop="description">一枚有梦想的程序猿</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives">
+              
+                  <span class="site-state-item-count">12</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">10</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#一、前言"><span class="nav-number">1.</span> <span class="nav-text">一、前言</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#二、分析问题"><span class="nav-number">2.</span> <span class="nav-text">二、分析问题</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#1、该页面的问题所在"><span class="nav-number">2.0.1.</span> <span class="nav-text">1、该页面的问题所在</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2、着手解决问题"><span class="nav-number">2.0.2.</span> <span class="nav-text">2、着手解决问题</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#三、准备知识"><span class="nav-number">3.</span> <span class="nav-text">三、准备知识</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#1、如何将像素显示到屏幕上"><span class="nav-number">3.0.1.</span> <span class="nav-text">1、如何将像素显示到屏幕上</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2、CPU参与的任务"><span class="nav-number">3.0.2.</span> <span class="nav-text">2、CPU参与的任务</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#3、GPU参与的任务"><span class="nav-number">3.0.3.</span> <span class="nav-text">3、GPU参与的任务</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#4、RunLoop"><span class="nav-number">3.0.4.</span> <span class="nav-text">4、RunLoop</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#四、开始优化"><span class="nav-number">4.</span> <span class="nav-text">四、开始优化</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#1、异步计算并缓存布局"><span class="nav-number">4.0.0.1.</span> <span class="nav-text">1、异步计算并缓存布局</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#2、减少视图层级、使用轻量级视图，异步绘制"><span class="nav-number">4.0.0.2.</span> <span class="nav-text">2、减少视图层级、使用轻量级视图，异步绘制</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#3、RunLoop优化"><span class="nav-number">4.0.0.3.</span> <span class="nav-text">3、RunLoop优化</span></a></li></ol></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#五、优化前后性能对比"><span class="nav-number">5.</span> <span class="nav-text">五、优化前后性能对比</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#1、支持的座位数量"><span class="nav-number">5.0.1.</span> <span class="nav-text">1、支持的座位数量</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2、帧率"><span class="nav-number">5.0.2.</span> <span class="nav-text">2、帧率</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#3、内存"><span class="nav-number">5.0.3.</span> <span class="nav-text">3、内存</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#4、页面卡顿时间"><span class="nav-number">5.0.4.</span> <span class="nav-text">4、页面卡顿时间</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
 
 
-    <!-- After Footer Scripts -->
-<script src="/js/highlight.pack.js"></script>
-<script>
-  document.addEventListener("DOMContentLoaded", function(event) {
-    var codeBlocks = Array.prototype.slice.call(document.getElementsByTagName('pre'))
-    codeBlocks.forEach(function(block, index) {
-      hljs.highlightBlock(block);
-    });
-  });
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+<div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Cui Lanqing</span>
+
+  
+</div>
+
+
+  <div class="powered-by">
+    <i class="fa fa-user-md"></i><span id="busuanzi_container_site_uv">
+    本站访客数:<span id="busuanzi_value_site_uv"></span>
+  </span>
+  </div>
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Pisces</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
 </script>
 
-  </body>
-</html>
 
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  <script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+  <script src="//unpkg.com/valine/dist/Valine.min.js"></script>
+  
+  <script type="text/javascript">
+    var GUEST = ['nick','mail','link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item=>{
+      return GUEST.indexOf(item)>-1;
+    });
+    new Valine({
+        el: '#comments' ,
+        verify: false,
+        notify: false,
+        appId: 'WCdYKBzVHyUAmYLBFSD0S1EM-gzGzoHsz',
+        appKey: 'TeFriUwpGPw3n0GaJ9PSdzEh',
+        placeholder: 'Just go go',
+        avatar:'mm',
+        guest_info:guest,
+        pageSize:'10' || 10,
+    });
+  </script>
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
