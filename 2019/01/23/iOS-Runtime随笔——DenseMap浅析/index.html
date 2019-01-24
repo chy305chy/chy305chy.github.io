@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next pisces use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Objective-C, runtime, 内存管理," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="一、引言在上一篇文章中，我们探讨了weak的底层实现原理，其中涉及到一个概念——DenseMap，包括后面要讲到的NSObject的引用计数原理，都离不开DenseMap，因此，在开始后面的篇章之前，有必要了解DenseMap的底层实现和原理。 DenseMap实际上是一个基于二次探查法的哈希表，在runtime的应用非常广泛(用作object的引用计数表等)。其具体实现可以在objc4-750的">
+<meta name="keywords" content="Objective-C, runtime, 内存管理">
+<meta property="og:type" content="article">
+<meta property="og:title" content="iOS-Runtime随笔——DenseMap浅析">
+<meta property="og:url" content="https://chy305chy.github.io/2019/01/23/iOS-Runtime随笔——DenseMap浅析/index.html">
+<meta property="og:site_name" content="崔岚清的个人博客">
+<meta property="og:description" content="一、引言在上一篇文章中，我们探讨了weak的底层实现原理，其中涉及到一个概念——DenseMap，包括后面要讲到的NSObject的引用计数原理，都离不开DenseMap，因此，在开始后面的篇章之前，有必要了解DenseMap的底层实现和原理。 DenseMap实际上是一个基于二次探查法的哈希表，在runtime的应用非常广泛(用作object的引用计数表等)。其具体实现可以在objc4-750的">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="https://chy305chy.github.io/2019/01/23/iOS-Runtime随笔——DenseMap浅析/1.png">
+<meta property="og:updated_time" content="2019-01-24T13:05:36.097Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="iOS-Runtime随笔——DenseMap浅析">
+<meta name="twitter:description" content="一、引言在上一篇文章中，我们探讨了weak的底层实现原理，其中涉及到一个概念——DenseMap，包括后面要讲到的NSObject的引用计数原理，都离不开DenseMap，因此，在开始后面的篇章之前，有必要了解DenseMap的底层实现和原理。 DenseMap实际上是一个基于二次探查法的哈希表，在runtime的应用非常广泛(用作object的引用计数表等)。其具体实现可以在objc4-750的">
+<meta name="twitter:image" content="https://chy305chy.github.io/2019/01/23/iOS-Runtime随笔——DenseMap浅析/1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://chy305chy.github.io/2019/01/23/iOS-Runtime随笔——DenseMap浅析/"/>
+
+
+
+
+
+  <title>iOS-Runtime随笔——DenseMap浅析 | 崔岚清的个人博客</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">崔岚清的个人博客</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">集跬步至千里，积小流成江海</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://chy305chy.github.io/2019/01/23/iOS-Runtime随笔——DenseMap浅析/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Cui Lanqing">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="崔岚清的个人博客">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">iOS-Runtime随笔——DenseMap浅析</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-01-23T19:21:40+08:00">
+                2019-01-23
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/iOS开发/" itemprop="url" rel="index">
+                    <span itemprop="name">iOS开发</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+                <a href="/2019/01/23/iOS-Runtime随笔——DenseMap浅析/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count valine-comment-count" data-xid="/2019/01/23/iOS-Runtime随笔——DenseMap浅析/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h3 id="一、引言"><a href="#一、引言" class="headerlink" title="一、引言"></a>一、引言</h3><p>在<a href="https://chy305chy.github.io/2019/01/18/iOS-Runtime%E9%9A%8F%E7%AC%94%E2%80%94%E2%80%94weak%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/#more">上一篇文章</a>中，我们探讨了weak的底层实现原理，其中涉及到一个概念——<code>DenseMap</code>，包括后面要讲到的NSObject的引用计数原理，都离不开<code>DenseMap</code>，因此，在开始后面的篇章之前，有必要了解<code>DenseMap</code>的底层实现和原理。</p>
+<p><code>DenseMap</code>实际上是一个基于二次探查法的哈希表，在runtime的应用非常广泛(用作object的引用计数表等)。其具体实现可以在<a href="https://opensource.apple.com/tarballs/objc4/objc4-750.tar.gz" target="_blank" rel="noopener">objc4-750</a>的<code>llvm-DenseMap.h</code>文件中找到。本篇我们对<code>DenseMap</code>从内存结构和Hash实现两个方面进行简单的分析。</p>
+<h3 id="二、DenseMap的内存结构"><a href="#二、DenseMap的内存结构" class="headerlink" title="二、DenseMap的内存结构"></a>二、DenseMap的内存结构</h3><p>先看看<code>DenseMap</code>的内部结构：</p>
+<p><img src="/2019/01/23/iOS-Runtime随笔——DenseMap浅析/1.png" alt="DenseMap的结构"></p>
+<p>开始下文之前，先了解<code>llvm-DenseMap.h</code>中的一些类型定义：</p>
+<ul>
+<li><strong>BucketT</strong></li>
+</ul>
+<p><code>BucketT</code>为存储key-value的Hash桶，在<code>DenseMapBase</code>中定义:</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="built_in">std</span>::pair&lt;KeyT, ValueT&gt; BucketT;</span><br></pre></td></tr></table></figure>
+<p>这里使用了C++标准库中的<code>pair</code>模板结构体(<code>std::pair</code>)，它的作用是将两个数据(可以是同一类型或不同类型)组合成一个数据。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> _<span class="title">PairT</span> &#123;</span></span><br><span class="line">  <span class="keyword">size_t</span> first;</span><br><span class="line">  <span class="keyword">size_t</span> second;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p><code>first</code>表示<code>pair</code>中的第一个元素(在<code>BucketT</code>中即为<code>key</code>)，<code>second</code>表示<code>pair</code>中的第二个元素(在<code>BucketT</code>中即为<code>value</code>)。这个概念在后面还会用到。<code>DenseMap</code>中直接使用了基类中的<code>BucketT</code>的定义：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="keyword">typename</span> BaseT::BucketT BucketT;</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>BaseT</strong></li>
+</ul>
+<p><code>BaseT</code>定义为基类<code>DenseMapBase</code>：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> DenseMapBase&lt;DenseMap, KeyT, ValueT, KeyInfoT, ZeroValuesArePurgeable&gt; BaseT;</span><br></pre></td></tr></table></figure>
+<p><code>DenseMap</code>继承自<code>DenseMapBase</code>，<code>DenseMapBase</code>中包含了<code>DenseMap</code>的Hash逻辑实现，在下节中详细讲。<code>DenseMap</code>中有四个成员变量：</p>
+<ul>
+<li><code>BucketT *Buckets</code>    Hash桶的首地址，桶中存储的是<code>std::pair&lt;KeyT, ValueT&gt;</code>键值对</li>
+<li><code>unsigned NumEntries</code> 存储的数据数目</li>
+<li><code>unsigned NumTombstones</code>  <code>Tombstone</code>个数，在解决Hash冲突时要用到该数据</li>
+<li><code>unsigned NumBuckets</code> Hash桶的数目</li>
+</ul>
+<h4 id="2-1-init"><a href="#2-1-init" class="headerlink" title="2.1 init"></a>2.1 init</h4><p><code>DenseMap</code>初始化涉及到三个函数：<code>init</code>, <code>allocateBuckets</code>, <code>initEmpty</code>。分别看下这三个函数</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">void</span> init(<span class="keyword">unsigned</span> InitBuckets) &#123;</span><br><span class="line">    <span class="keyword">if</span> (allocateBuckets(InitBuckets)) &#123;</span><br><span class="line">      <span class="keyword">this</span>-&gt;BaseT::initEmpty();</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      NumEntries = <span class="number">0</span>;</span><br><span class="line">      NumTombstones = <span class="number">0</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">bool</span> allocateBuckets(<span class="keyword">unsigned</span> Num) &#123;</span><br><span class="line">    NumBuckets = Num;</span><br><span class="line">    <span class="keyword">if</span> (NumBuckets == <span class="number">0</span>) &#123;</span><br><span class="line">      Buckets = <span class="number">0</span>;</span><br><span class="line">      <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    Buckets = static_cast&lt;BucketT*&gt;(operator new(<span class="keyword">sizeof</span>(BucketT)*NumBuckets));</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">void</span> initEmpty() &#123;</span><br><span class="line">    setNumEntries(<span class="number">0</span>);</span><br><span class="line">    setNumTombstones(<span class="number">0</span>);</span><br><span class="line"></span><br><span class="line">    assert((getNumBuckets() &amp; (getNumBuckets() - <span class="number">1</span>)) == <span class="number">0</span> &amp;&amp;</span><br><span class="line">           <span class="string">"# initial buckets must be a power of two!"</span>);</span><br><span class="line">    <span class="keyword">const</span> KeyT EmptyKey = getEmptyKey();</span><br><span class="line">    <span class="keyword">for</span> (BucketT *B = getBuckets(), *E = getBucketsEnd(); B != E; ++B)</span><br><span class="line">      new (&amp;B-&gt;first) KeyT(EmptyKey);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>init</code>函数首先调用<code>allocateBuckets</code>根据初始Bucket的个数分配内存空间(使用<code>operator new</code>分配内存)，如果初始桶的个数为0，设置<code>NumEntries</code>和<code>NumTombstones</code>为0；否则，调用<code>DenseMapBase</code>中的<code>initEmpty</code>对这些空桶进行初始化。<code>initEmpty</code>函数中对<code>NumEntries</code>和<code>NumTombstones</code>的值进行初始化，然后判断Bucket的数量是否为2的次幂，<strong><code>DenseMap</code>要求Hash表的容量（Bucket桶的数量）必须是2的次幂</strong>。然后遍历所有的Buckets，初始化其key为<code>EmptyKey</code>。关于empty key的计算，放到第三节中讲。</p>
+<h4 id="2-2-Hash桶的增长和缩减"><a href="#2-2-Hash桶的增长和缩减" class="headerlink" title="2.2 Hash桶的增长和缩减"></a>2.2 Hash桶的增长和缩减</h4><ul>
+<li><strong>Hash表扩容</strong></li>
+</ul>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">grow</span><span class="params">(<span class="keyword">unsigned</span> AtLeast)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 获取老的Bucket桶数量</span></span><br><span class="line">    <span class="keyword">unsigned</span> OldNumBuckets = NumBuckets;</span><br><span class="line">    <span class="comment">// 指向原先Buckets内存区域首地址的指针</span></span><br><span class="line">    BucketT *OldBuckets = Buckets;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 计算大于AtLeast的最小的2次幂数，以这个数来分配新的Buckets内存</span></span><br><span class="line">    allocateBuckets(<span class="built_in">std</span>::max&lt;<span class="keyword">unsigned</span>&gt;(MIN_BUCKETS, NextPowerOf2(AtLeast)));</span><br><span class="line">    assert(Buckets);</span><br><span class="line">    <span class="comment">// 如果老的Buckets为空，初始化</span></span><br><span class="line">    <span class="keyword">if</span> (!OldBuckets)</span><br><span class="line">    &#123;</span><br><span class="line">      <span class="keyword">this</span>-&gt;BaseT::initEmpty();</span><br><span class="line">      <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 将老的Buckets数据移动到新分配的内存中</span></span><br><span class="line">    <span class="keyword">this</span>-&gt;moveFromOldBuckets(OldBuckets, OldBuckets + OldNumBuckets);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Free the old table.</span></span><br><span class="line">    <span class="comment">// 释放掉老的内存</span></span><br><span class="line">    <span class="function"><span class="keyword">operator</span> <span class="title">delete</span><span class="params">(OldBuckets)</span></span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 获取大于A的最小的2次幂数</span></span><br><span class="line"><span class="function"><span class="keyword">inline</span> uint64_t <span class="title">NextPowerOf2</span><span class="params">(<span class="keyword">uint64_t</span> A)</span> </span>&#123;</span><br><span class="line">  A |= (A &gt;&gt; <span class="number">1</span>);</span><br><span class="line">  A |= (A &gt;&gt; <span class="number">2</span>);</span><br><span class="line">  A |= (A &gt;&gt; <span class="number">4</span>);</span><br><span class="line">  A |= (A &gt;&gt; <span class="number">8</span>);</span><br><span class="line">  A |= (A &gt;&gt; <span class="number">16</span>);</span><br><span class="line">  A |= (A &gt;&gt; <span class="number">32</span>);</span><br><span class="line">  <span class="keyword">return</span> A + <span class="number">1</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这里的Hash表的增长与上篇文章中存储weak变量的散列表的增长方式基本相同：是先分配一块新的内存，将老的内存数据复制过来，用这种方法实现Hash表的动态增长。在复制老数据时，跳过那些key为<code>EmptyKey</code>和<code>TombstoneKey</code>的元素：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (!KeyInfoT::isEqual(B-&gt;first, EmptyKey) &amp;&amp;</span><br><span class="line">          !KeyInfoT::isEqual(B-&gt;first, TombstoneKey) &amp;&amp;</span><br><span class="line">          !(ZeroValuesArePurgeable &amp;&amp; B-&gt;second == <span class="number">0</span>))</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="comment">// Insert the key/value into the new table.</span></span><br><span class="line">        ...</span><br><span class="line">        DestBucket-&gt;first = llvm_move(B-&gt;first);</span><br><span class="line">        <span class="keyword">new</span> (&amp;DestBucket-&gt;second) ValueT(llvm_move(B-&gt;second));</span><br><span class="line">        incrementNumEntries();</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// Free the value.</span></span><br><span class="line">        B-&gt;second.~ValueT();</span><br><span class="line">      &#125;</span><br><span class="line">      B-&gt;first.~KeyT();</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+<p>那么什么时候调用<code>grow</code>函数对Hash表进行扩容呢？</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (NewNumEntries * <span class="number">4</span> &gt;= NumBuckets * <span class="number">3</span>)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">this</span>-&gt;grow(NumBuckets * <span class="number">2</span>);</span><br><span class="line">    LookupBucketFor(Key, TheBucket);</span><br><span class="line">    NumBuckets = getNumBuckets();</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">if</span> (NumBuckets - (NewNumEntries + getNumTombstones()) &lt;= NumBuckets / <span class="number">8</span>)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">this</span>-&gt;grow(NumBuckets);</span><br><span class="line">    LookupBucketFor(Key, TheBucket);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从代码可以看出：</p>
+<ol>
+<li>当前Hash表中的元素数量大于容量的3/4时，对Hash表进行扩容，容量增加至少1倍（注意，实际增加的表容量大小必须为2的次幂）。以保证散列表的装填因子(<code>load factor</code>)维持在<code>0.75</code>；</li>
+<li>Hash表中的空余槽位（这里表现为空的Bucket）小于容量的1/8时（此时，Hash表中的大部分元素被填充为<code>TombStone</code>），维持表的原有容量，并进行<code>rehash</code>操作。</li>
+</ol>
+<ul>
+<li><strong>Hash表收缩</strong></li>
+</ul>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">compact</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (getNumEntries() == <span class="number">0</span>)</span><br><span class="line">    &#123;</span><br><span class="line">      shrink_and_clear();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">else</span> <span class="keyword">if</span> (getNumBuckets() / <span class="number">16</span> &gt; getNumEntries() &amp;&amp;</span><br><span class="line">             getNumBuckets() &gt; MIN_COMPACT)</span><br><span class="line">    &#123;</span><br><span class="line">      grow(getNumEntries() * <span class="number">2</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ol>
+<li>如果当前Hash表中的没有元素，执行清理操作<code>shrink_and_clear</code>;</li>
+<li>如果当前Hash表中的元素数量小于容量的1/16而且当前表的容量大于<code>MIN_COMPACT</code>，收缩表的容量至表中当前元素数量的2倍。</li>
+</ol>
+<p><code>shrink_and_clear</code>执行Hash表的清理工作，主要是重新分配一块内存，内存的大小为<code>MAX(MIN_BUCKETS, 2^ceil(log(OldNumEntries)))</code>，其中<code>log</code>以2为底，<code>OldNumEntries</code>是执行清理之前的Hash表中元素的数目。分配完内存之后进行初始化，释放掉原有的内存。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">shrink_and_clear</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">unsigned</span> OldNumEntries = NumEntries;</span><br><span class="line">    <span class="keyword">this</span>-&gt;destroyAll();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Reduce the number of buckets.</span></span><br><span class="line">    <span class="keyword">unsigned</span> NewNumBuckets = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">if</span> (OldNumEntries)</span><br><span class="line">      NewNumBuckets = <span class="built_in">std</span>::max(MIN_BUCKETS, <span class="number">1</span> &lt;&lt; (Log2_32_Ceil(OldNumEntries) + <span class="number">1</span>));</span><br><span class="line">    <span class="keyword">if</span> (NewNumBuckets == NumBuckets)</span><br><span class="line">    &#123;</span><br><span class="line">      <span class="keyword">this</span>-&gt;BaseT::initEmpty();</span><br><span class="line">      <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">operator</span> <span class="title">delete</span><span class="params">(Buckets)</span></span>;</span><br><span class="line">    init(NewNumBuckets);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>问题：什么时候收缩Hash表呢？</strong></p>
+<p>当<code>NSObject</code>对象释放的时候，会调用对象的函数：<code>obj-&gt;clearDeallocating()</code>(具体细节本文暂不分析)，最终会调用<code>DenseMap</code>的<code>erase</code>函数，执行Hash表的清理和收缩操作：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">void</span> erase(iterator I)</span><br><span class="line">  &#123;</span><br><span class="line">    BucketT *TheBucket = &amp;*I;</span><br><span class="line">    <span class="comment">// 析构函数，销毁并释放value</span></span><br><span class="line">    TheBucket-&gt;second.~ValueT();</span><br><span class="line">    <span class="comment">// 将Hash的key设置为TombStone Key</span></span><br><span class="line">    TheBucket-&gt;first = getTombstoneKey();</span><br><span class="line">    <span class="comment">// Hash表中元素数量-1</span></span><br><span class="line">    decrementNumEntries();</span><br><span class="line">    <span class="comment">// TombStone数量+1</span></span><br><span class="line">    incrementNumTombstones();</span><br><span class="line">    <span class="comment">// 收缩Hash表</span></span><br><span class="line">    compact();</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+<p>对象释放之后，它在Hash表中对应的元素并不会马上被删除，而是将其对应的key设置为<code>TombStone Key</code>，表示该对象已经销毁，然后等到合适的时机，调用<code>grow</code>函数调整表的容量。</p>
+<h3 id="三、DenseMap的Hash实现"><a href="#三、DenseMap的Hash实现" class="headerlink" title="三、DenseMap的Hash实现"></a>三、DenseMap的Hash实现</h3><p><code>DenseMap</code>的Hash实现逻辑都封装在其基类<code>DenseMapBase</code>中，Hash的实现离不开key的计算，包括上一节中提到的<code>Empty Key</code>和<code>TombStone Key</code>等，这些逻辑都是在<code>DenseMapInfo&lt;&gt;</code>模板类中实现。<code>DenseMapInfo</code>提供了针对runtime需要用到的类型（指针、DisguisedPtr、cstring、char、unsigned int、unsigned long、unsigned long long、int、long、long long、std::pair）的key的实现。</p>
+<p>基本上，<code>Empty Key</code>是该类型所能表示的最大值，比如对于<code>unsigned long</code>类型，它的<code>Empty Key</code>为<code>~0UL</code>，<code>TombStone Key</code>为<code>Empty Key</code> - 1。这里就不一一列出了，感兴趣的同学可以查看<code>llvm-DenseMapInfo.h</code>文件。</p>
+<p>下面详细介绍一下Hash Key的计算。</p>
+<h4 id="3-1-Hash-Key的计算"><a href="#3-1-Hash-Key的计算" class="headerlink" title="3.1 Hash Key的计算"></a>3.1 Hash Key的计算</h4><p>先看下不同类型的<code>getHashValue</code>实现：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="keyword">unsigned</span> getHashValue(<span class="keyword">const</span> T *PtrVal) &#123; <span class="keyword">return</span> ptr_hash((uintptr_t)PtrVal); &#125;</span><br><span class="line"><span class="keyword">static</span> <span class="keyword">unsigned</span> getHashValue(<span class="keyword">const</span> <span class="keyword">char</span>* <span class="keyword">const</span> &amp;Val) &#123; <span class="keyword">return</span> _objc_strhash(Val); &#125;</span><br><span class="line"><span class="keyword">static</span> <span class="keyword">unsigned</span> getHashValue(<span class="keyword">const</span> <span class="keyword">char</span>&amp; Val) &#123; <span class="keyword">return</span> Val * <span class="number">37</span>U; &#125;</span><br><span class="line"><span class="keyword">static</span> <span class="keyword">unsigned</span> getHashValue(<span class="keyword">const</span> <span class="keyword">unsigned</span>&amp; Val) &#123; <span class="keyword">return</span> Val * <span class="number">37</span>U; &#125;</span><br><span class="line"><span class="keyword">static</span> <span class="keyword">unsigned</span> getHashValue(<span class="keyword">const</span> <span class="keyword">unsigned</span> <span class="keyword">long</span>&amp; Val) &#123; <span class="keyword">return</span> (<span class="keyword">unsigned</span>)(Val * <span class="number">37</span>UL); &#125;</span><br><span class="line"><span class="keyword">static</span> <span class="keyword">unsigned</span> getHashValue(<span class="keyword">const</span> <span class="keyword">unsigned</span> <span class="keyword">long</span> <span class="keyword">long</span>&amp; Val) &#123; <span class="keyword">return</span> (<span class="keyword">unsigned</span>)(Val * <span class="number">37</span>ULL); &#125;</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+<ul>
+<li>对于指针类型，使用<code>ptr_hash</code>计算其hash key，详情请看<a href="https://chy305chy.github.io/2019/01/18/iOS-Runtime%E9%9A%8F%E7%AC%94%E2%80%94%E2%80%94weak%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/#more">上一篇文章</a></li>
+<li>对于string类型，使用<code>_objc_strhash</code>计算其hash key</li>
+<li>对于char/int/long/long long等类型，采用乘法作为哈希函数，这里的哈希函数为：<strong>hash(k) = 37 * k</strong>，它们的Hash Seed都选择了37。</li>
+</ul>
+<p>在设计哈希函数时，通常选择一个数（记做A）来改变哈希函数的状态值，这个数叫做<strong>种子(Hash Seed)</strong>。根据哈希表的特性，哈希函数计算出来的key分布越均匀，哈希冲突越少，哈希表的性能就越高，因此通过哈希函数计算得到的哈希值一定要在统计学上具有更高的熵，也就是尽量均匀分布。如果我们传入哈希函数的参数是完全随机分布的，那么随便选一个seed进行计算得到的结果也一定是完全随机的，当然这只是理想的情况。实际应用中，我们给哈希函数的入参是具有某种规律的，比如连续的内存地址、具有某种分布规律的整数等等。这时我们寻找的seed就要求能尽量避免哈希冲突的发生。基于这种目的，设计哈希函数时通常选取<strong>素数</strong>作为seed。</p>
+<p>说实话，看到<code>Val * 37U</code>时有些诧异，本以为Apple会设计一个相当复杂晦涩的Hash函数，结果，so simple。。。猜测也许是runtime中针对整型的hash计算使用的很少，就用了一个简单的哈希函数，虽然会偶尔发生碰撞，但是也在可接受的范围内。借用网上的一段话：</p>
+<blockquote>
+<p>I have also worked on the hashing for integers and my first test was trying to measure difference in performance when putting the worst hash function you can think of for integers : hash(k) = 0. It turns out that the difference I measured is below 0.5 %, which is below the noise of repeating experience. So, with my benchmark (compiling a .cpp file with clang with -O3), the quality of the hash for integers doe not matter at all. <strong>It seems that the usage of integers as keys is very low.</strong> </p>
+</blockquote>
+<h4 id="3-2-Hash表的存取"><a href="#3-2-Hash表的存取" class="headerlink" title="3.2 Hash表的存取"></a>3.2 Hash表的存取</h4><p>既然是散列表，那么碰撞/冲突是不可避免的，<code>DenseMap</code>是怎么解决冲突和对Hash桶进行存取的呢？</p>
+<h5 id="3-2-1-碰撞解决"><a href="#3-2-1-碰撞解决" class="headerlink" title="3.2.1 碰撞解决"></a>3.2.1 碰撞解决</h5><p>未完待续。。。</p>
+<h3 id="四、总结"><a href="#四、总结" class="headerlink" title="四、总结"></a>四、总结</h3>
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Objective-C-runtime-内存管理/" rel="tag"># Objective-C, runtime, 内存管理</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/01/18/iOS-Runtime随笔——weak原理探究/" rel="next" title="iOS Runtime随笔——weak原理探究">
+                <i class="fa fa-chevron-left"></i> iOS Runtime随笔——weak原理探究
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+    <div class="comments" id="comments">
+    </div>
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Cui Lanqing</p>
+              <p class="site-description motion-element" itemprop="description">一枚有梦想的程序猿</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives">
+              
+                  <span class="site-state-item-count">13</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">11</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#一、引言"><span class="nav-number">1.</span> <span class="nav-text">一、引言</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#二、DenseMap的内存结构"><span class="nav-number">2.</span> <span class="nav-text">二、DenseMap的内存结构</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#2-1-init"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 init</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-2-Hash桶的增长和缩减"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 Hash桶的增长和缩减</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#三、DenseMap的Hash实现"><span class="nav-number">3.</span> <span class="nav-text">三、DenseMap的Hash实现</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#3-1-Hash-Key的计算"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 Hash Key的计算</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-2-Hash表的存取"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 Hash表的存取</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#3-2-1-碰撞解决"><span class="nav-number">3.2.1.</span> <span class="nav-text">3.2.1 碰撞解决</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#四、总结"><span class="nav-number">4.</span> <span class="nav-text">四、总结</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+<div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Cui Lanqing</span>
+
+  
+</div>
+
+
+  <div class="powered-by">
+    <i class="fa fa-user-md"></i><span id="busuanzi_container_site_uv">
+    本站访客数:<span id="busuanzi_value_site_uv"></span>
+  </span>
+  </div>
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Pisces</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  <script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+  <script src="//unpkg.com/valine/dist/Valine.min.js"></script>
+  
+  <script type="text/javascript">
+    var GUEST = ['nick','mail','link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item=>{
+      return GUEST.indexOf(item)>-1;
+    });
+    new Valine({
+        el: '#comments' ,
+        verify: false,
+        notify: false,
+        appId: 'WCdYKBzVHyUAmYLBFSD0S1EM-gzGzoHsz',
+        appKey: 'TeFriUwpGPw3n0GaJ9PSdzEh',
+        placeholder: 'Just go go',
+        avatar:'mm',
+        guest_info:guest,
+        pageSize:'10' || 10,
+    });
+  </script>
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

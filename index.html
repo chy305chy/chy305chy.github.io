@@ -253,6 +253,165 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://chy305chy.github.io/2019/01/23/iOS-Runtime随笔——DenseMap浅析/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Cui Lanqing">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="崔岚清的个人博客">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2019/01/23/iOS-Runtime随笔——DenseMap浅析/" itemprop="url">iOS-Runtime随笔——DenseMap浅析</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-01-23T19:21:40+08:00">
+                2019-01-23
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/iOS开发/" itemprop="url" rel="index">
+                    <span itemprop="name">iOS开发</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+                <a href="/2019/01/23/iOS-Runtime随笔——DenseMap浅析/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count valine-comment-count" data-xid="/2019/01/23/iOS-Runtime随笔——DenseMap浅析/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+          一、引言在上一篇文章中，我们探讨了weak的底层实现原理，其中涉及到一个概念——DenseMap，包括后面要讲到的NSObject的引用计数原理，都离不开DenseMap，因此，在开始后面的篇章之前，有必要了解DenseMap的底层实现和原理。
+DenseMap实际上是一个基于二次探查法的哈希表，在runtime的应用非常广泛(用作object的引用计数表等)。其具体实现可以在objc4-750的
+          ...
+          <!--noindex-->
+          <div class="post-button text-center">
+            <a class="btn" href="/2019/01/23/iOS-Runtime随笔——DenseMap浅析/#more" rel="contents">
+              阅读全文 &raquo;
+            </a>
+          </div>
+          <!--/noindex-->
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="https://chy305chy.github.io/2019/01/18/iOS-Runtime随笔——weak原理探究/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -356,8 +515,7 @@
       
         
           
-          年底了 版本任务不太重，趁着空闲时间把runtime的底层原理探索一遍，本篇文章着重介绍weak的底层实现原理。
-一、引言12345678910111213// 1.@property (nonatomic, weak) TestObject *weakObj;// 2.__weak TestObj
+          一、引言12345678910111213// 1.@property (nonatomic, weak) TestObject *weakObj;// 2.__weak TestObject *weakObj = obj;// 3.__weak __typeof__(self) weakSelf = self;TestBlock block = ^&#123;    __strong __typ
           ...
           <!--noindex-->
           <div class="post-button text-center">
@@ -517,7 +675,8 @@
           
           由于测试用例不可能覆盖到所有情况，因此，上线后面对复杂的用户环境和用户操作，难免出现一些crash问题。crash也是很影响用户体验的，常见的crash异常信息有：
 
-EXEC_BAD_ACCESS (SIGSEGV/SIGBUS)，发生在程序试图房屋无效的内存或试图以内存的保护级别所不允许的方式去
+EXEC_BAD_ACCESS (SIGSEGV/SIGBUS)，发生在程序试图房屋无效的内存或试图以内存的保护级别所不允许的方式去访问内存的时候；
+EXEC_CRASH (SIGABRT)，异常退出，比如：如果程序初始化时间过长而
           ...
           <!--noindex-->
           <div class="post-button text-center">
@@ -678,7 +837,7 @@ EXEC_BAD_ACCESS (SIGSEGV/SIGBUS)，发生在程序试图房屋无效的内存或
           一、引言上篇文章中讲到，dispatch_once使用无锁方式实现线程安全和优异的性能。本篇文章我们来分析一下dispatch_once的性能。
 从dispatch_once的源码可以看出，其本质就是一个if-else语句。我们使用非线程安全的纯if-else语句作为空白对照。
 纯if-else:
-
+12345678910- (void)benchmark &#123;    TestObject 
           ...
           <!--noindex-->
           <div class="post-button text-center">
@@ -836,7 +995,7 @@ EXEC_BAD_ACCESS (SIGSEGV/SIGBUS)，发生在程序试图房屋无效的内存或
       
         
           
-          一、前言12345678+ (instancetype) sharedInstance &#123;    static dispatch_once_t onceToken;    static TestObject sharedInstance;    dispatch_once(&amp;onc
+          一、前言12345678+ (instancetype) sharedInstance &#123;    static dispatch_once_t onceToken;    static TestObject sharedInstance;    dispatch_once(&amp;onceToken, ^&#123;        sharedInstance = [TestObjec
           ...
           <!--noindex-->
           <div class="post-button text-center">
@@ -994,7 +1153,7 @@ EXEC_BAD_ACCESS (SIGSEGV/SIGBUS)，发生在程序试图房屋无效的内存或
       
         
           
-          一、前言大部分的GCD操作都离不开队列（queue）：使用dispatch_get_main_queue获取主队列，使用dispatch_queue_create创建一个自定义的队列，使用dispatch_get_global_queue获取一个全局的并发队列等等。那么GCD是如何通过这些队列实现多
+          一、前言大部分的GCD操作都离不开队列（queue）：使用dispatch_get_main_queue获取主队列，使用dispatch_queue_create创建一个自定义的队列，使用dispatch_get_global_queue获取一个全局的并发队列等等。那么GCD是如何通过这些队列实现多线程的呢？它又是如何管理这些队列的呢？dispatch_async/dispatch_sync是如何
           ...
           <!--noindex-->
           <div class="post-button text-center">
@@ -1152,7 +1311,7 @@ EXEC_BAD_ACCESS (SIGSEGV/SIGBUS)，发生在程序试图房屋无效的内存或
       
         
           
-          一、前言Grand Central Dispatch(GCD)作为iOS和MacOS开发中不可或缺的工具，它的重要性不言而喻。作为一个喜欢刨根问底的猿，知其然更要知其所以然。网上关于GCD解析的文章不多，仅有的几篇使用的源码版本很老，libdispatch从187.10发展到913.60，其内部已经
+          一、前言Grand Central Dispatch(GCD)作为iOS和MacOS开发中不可或缺的工具，它的重要性不言而喻。作为一个喜欢刨根问底的猿，知其然更要知其所以然。网上关于GCD解析的文章不多，仅有的几篇使用的源码版本很老，libdispatch从187.10发展到913.60，其内部已经发生了很多变化。趁工作之余断断续续把GCD的源码libdispatch-913.60.2.tar.g
           ...
           <!--noindex-->
           <div class="post-button text-center">
@@ -1311,7 +1470,7 @@ EXEC_BAD_ACCESS (SIGSEGV/SIGBUS)，发生在程序试图房屋无效的内存或
         
           
           一、前言最近对App中的埋点代码进行了改造（随着项目的增大，散落在系统各处的埋点代码实在不好管理），利用AOP的方式将散布在各个页面中的埋点代码统一起来组成一个独立的模块，从而减少埋点行为对业务代码的侵入。
-熟悉iOS AOP编程的同学肯定听过Aspects这个框架，我们也使用这个框架实现Metho
+熟悉iOS AOP编程的同学肯定听过Aspects这个框架，我们也使用这个框架实现Method Swizzle，通过Method Swizzle给指定的方法添加side-effect，在sid
           ...
           <!--noindex-->
           <div class="post-button text-center">
@@ -1470,7 +1629,7 @@ EXEC_BAD_ACCESS (SIGSEGV/SIGBUS)，发生在程序试图房屋无效的内存或
         
           
           一、前言我们在编写Objective-C和C代码时经常会用到指针，切换到Swift语言中来，虽然其可以无缝使用C语言指针，但是在语法上与OC和C还是有很大区别的。
-Swift本身是内存安全的，只要确保所有变量在使用前都被正确地初始化，我们不必担心内存问题，因此，Apple官方不建议开发者直接操作内存
+Swift本身是内存安全的，只要确保所有变量在使用前都被正确地初始化，我们不必担心内存问题，因此，Apple官方不建议开发者直接操作内存，但是Swift还是为开发者提供了使用指针直接操作内存的方法，Swift中所有的指针类型都带有“Un
           ...
           <!--noindex-->
           <div class="post-button text-center">
@@ -1629,170 +1788,12 @@ Swift本身是内存安全的，只要确保所有变量在使用前都被正确
         
           
           一、引出问题
-前段时间开发FLEX+Relative库（使用Category和Runtime实现将FLEX库扩展出可以查看UIView相对间距的功能）。开发完成后遇到了一个奇怪的BUG，模拟器与真机调试时行为不一致，模拟器上可以正常实现预期功能，但是在真机上却出现问题：程序展示的视图与实际选中的视图
+前段时间开发FLEX+Relative库（使用Category和Runtime实现将FLEX库扩展出可以查看UIView相对间距的功能）。开发完成后遇到了一个奇怪的BUG，模拟器与真机调试时行为不一致，模拟器上可以正常实现预期功能，但是在真机上却出现问题：程序展示的视图与实际选中的视图不一致。先看问题代码：
+123456789101112131415- (void)updateRel
           ...
           <!--noindex-->
           <div class="post-button text-center">
             <a class="btn" href="/2018/08/14/从一个BUG谈起，剖析objc-msgSend函数的底层实现/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
-          </div>
-          <!--/noindex-->
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://chy305chy.github.io/2018/06/03/最长回文子串的4种解法（swift实现）/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Cui Lanqing">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="崔岚清的个人博客">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/06/03/最长回文子串的4种解法（swift实现）/" itemprop="url">最长回文子串的4种解法（swift实现）</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-06-03T15:59:02+08:00">
-                2018-06-03
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-            <span class="post-category" >
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/算法-LeetCode/" itemprop="url" rel="index">
-                    <span itemprop="name">算法, LeetCode</span>
-                  </a>
-                </span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-              <span class="post-comments-count">
-                <span class="post-meta-divider">|</span>
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-comment-o"></i>
-                </span>
-                <a href="/2018/06/03/最长回文子串的4种解法（swift实现）/#comments" itemprop="discussionUrl">
-                  <span class="post-comments-count valine-comment-count" data-xid="/2018/06/03/最长回文子串的4种解法（swift实现）/" itemprop="commentCount"></span>
-                </a>
-              </span>
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-          一、问题子串：原字符串中任意个连续字符组成的子序列，长度小于等于原字符串回文：形如：”abba”, “abcdcba”等中间字符对称的文法最长回文子串：某个字符串中满足回文特性的最长子串
-二、解法2.1 暴力查找最先也最容易想到的解决办法，由于用到了三重for循环，时间复杂度为O(N^3)，空间复杂
-          ...
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2018/06/03/最长回文子串的4种解法（swift实现）/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -1880,7 +1881,7 @@ Swift本身是内存安全的，只要确保所有变量在使用前都被正确
               
                 <a href="/archives">
               
-                  <span class="site-state-item-count">12</span>
+                  <span class="site-state-item-count">13</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -1902,7 +1903,7 @@ Swift本身是内存安全的，只要确保所有变量在使用前都被正确
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">10</span>
+                  <span class="site-state-item-count">11</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>

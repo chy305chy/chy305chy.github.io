@@ -79,19 +79,19 @@
 
 
 
-<meta name="description" content="年底了 版本任务不太重，趁着空闲时间把runtime的底层原理探索一遍，本篇文章着重介绍weak的底层实现原理。 一、引言12345678910111213// 1.@property (nonatomic, weak) TestObject *weakObj;// 2.__weak TestObject *weakObj = obj;// 3.__weak __typeof__(self) we">
+<meta name="description" content="一、引言12345678910111213// 1.@property (nonatomic, weak) TestObject *weakObj;// 2.__weak TestObject *weakObj = obj;// 3.__weak __typeof__(self) weakSelf = self;TestBlock block = ^&amp;#123;    __strong __typ">
 <meta name="keywords" content="Objective-C, runtime, ARC">
 <meta property="og:type" content="article">
 <meta property="og:title" content="iOS Runtime随笔——weak原理探究">
 <meta property="og:url" content="https://chy305chy.github.io/2019/01/18/iOS-Runtime随笔——weak原理探究/index.html">
 <meta property="og:site_name" content="崔岚清的个人博客">
-<meta property="og:description" content="年底了 版本任务不太重，趁着空闲时间把runtime的底层原理探索一遍，本篇文章着重介绍weak的底层实现原理。 一、引言12345678910111213// 1.@property (nonatomic, weak) TestObject *weakObj;// 2.__weak TestObject *weakObj = obj;// 3.__weak __typeof__(self) we">
+<meta property="og:description" content="一、引言12345678910111213// 1.@property (nonatomic, weak) TestObject *weakObj;// 2.__weak TestObject *weakObj = obj;// 3.__weak __typeof__(self) weakSelf = self;TestBlock block = ^&amp;#123;    __strong __typ">
 <meta property="og:locale" content="zh-Hans">
 <meta property="og:image" content="https://chy305chy.github.io/2019/01/18/iOS-Runtime随笔——weak原理探究/2.png">
-<meta property="og:updated_time" content="2019-01-23T08:24:30.249Z">
+<meta property="og:updated_time" content="2019-01-24T09:19:00.820Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="iOS Runtime随笔——weak原理探究">
-<meta name="twitter:description" content="年底了 版本任务不太重，趁着空闲时间把runtime的底层原理探索一遍，本篇文章着重介绍weak的底层实现原理。 一、引言12345678910111213// 1.@property (nonatomic, weak) TestObject *weakObj;// 2.__weak TestObject *weakObj = obj;// 3.__weak __typeof__(self) we">
+<meta name="twitter:description" content="一、引言12345678910111213// 1.@property (nonatomic, weak) TestObject *weakObj;// 2.__weak TestObject *weakObj = obj;// 3.__weak __typeof__(self) weakSelf = self;TestBlock block = ^&amp;#123;    __strong __typ">
 <meta name="twitter:image" content="https://chy305chy.github.io/2019/01/18/iOS-Runtime随笔——weak原理探究/2.png">
 
 
@@ -354,8 +354,7 @@
       
 
       
-        <p>年底了 版本任务不太重，趁着空闲时间把runtime的底层原理探索一遍，本篇文章着重介绍weak的底层实现原理。</p>
-<h3 id="一、引言"><a href="#一、引言" class="headerlink" title="一、引言"></a>一、引言</h3><figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 1.</span></span><br><span class="line"><span class="keyword">@property</span> (<span class="keyword">nonatomic</span>, <span class="keyword">weak</span>) TestObject *weakObj;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 2.</span></span><br><span class="line">__<span class="keyword">weak</span> TestObject *weakObj = obj;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 3.</span></span><br><span class="line">__<span class="keyword">weak</span> __typeof__(<span class="keyword">self</span>) weakSelf = <span class="keyword">self</span>;</span><br><span class="line">TestBlock block = ^&#123;</span><br><span class="line">    __<span class="keyword">strong</span> __typeof__(weakSelf) strongSelf = weakSelf;</span><br><span class="line">    <span class="comment">// do something inside the block</span></span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+        <h3 id="一、引言"><a href="#一、引言" class="headerlink" title="一、引言"></a>一、引言</h3><figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 1.</span></span><br><span class="line"><span class="keyword">@property</span> (<span class="keyword">nonatomic</span>, <span class="keyword">weak</span>) TestObject *weakObj;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 2.</span></span><br><span class="line">__<span class="keyword">weak</span> TestObject *weakObj = obj;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 3.</span></span><br><span class="line">__<span class="keyword">weak</span> __typeof__(<span class="keyword">self</span>) weakSelf = <span class="keyword">self</span>;</span><br><span class="line">TestBlock block = ^&#123;</span><br><span class="line">    __<span class="keyword">strong</span> __typeof__(weakSelf) strongSelf = weakSelf;</span><br><span class="line">    <span class="comment">// do something inside the block</span></span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>相信大家对上述代码不陌生，weak修饰对象表示对该对象的弱引用，弱引用不会增加对象的引用计数，并且在所指向的对象被释放之后，weak指针会被设置的为nil，同时避免了”野指针（或者suspend pointer）”的问题。在使用代理模式或者block时，为了避免引起retain cycle而导致内存泄露，我们通常使用weak关键字来打破循环引用链。</p>
 <p>之前只是单纯的知道使用weak，但是对于更深层的原理，正文开始前，先提出三个问题：</p>
 <ol>
@@ -458,9 +457,9 @@
 <li><code>hash_pointer</code>函数对应<code>weak_table_t</code>中的hash表(即<code>weak_entries</code>)，根据被弱引用对象的地址生成key</li>
 <li><code>w_hash_pointer</code>函数对应<code>weak_entry_t</code>中的out_of_line时的<code>referrers</code> hash表，根据对象的weak变量的指针生成key</li>
 </ul>
-<p>看下<code>ptr_hash</code>函数：</p>
+<p>看下哈希函数<code>ptr_hash</code>：</p>
 <figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="keyword">inline</span> uint32_t ptr_hash(uint64_t key)</span><br><span class="line">&#123;</span><br><span class="line">    key ^= key &gt;&gt; <span class="number">4</span>;</span><br><span class="line">    key *= <span class="number">0x8a970be7488fda55</span>;</span><br><span class="line">    key ^= __builtin_bswap64(key);</span><br><span class="line">    <span class="keyword">return</span> (uint32_t)key;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p><code>ptr_hash</code>基于一种<a href="http://locklessinc.com/articles/fast_hash/" target="_blank" rel="noopener">Fash Hash算法</a>，该算法一定程度地牺牲hash准确度以保证hash的速度，适用于当前weak hash表的应用情形。</p>
+<p><code>ptr_hash</code>基于一种<a href="http://locklessinc.com/articles/fast_hash/" target="_blank" rel="noopener">Fash Hash算法</a>，该算法一定程度地牺牲hash准确度以保证hash的速度，这个哈希函数相当的简洁，但却行之有效。至于为什么<code>key &gt;&gt; 4</code>，猜测是malloc分配内存后的指针都有16字节偏移的原因，在这种情形下<code>key &gt;&gt; 4</code>能够达到很低的碰撞率，具体的讨论可以看这里：<a href="http://llvm.1065342.n5.nabble.com/llvm-dev-Default-hashing-function-for-integers-DenseMapInfo-h-td104692.html" target="_blank" rel="noopener">[llvm-dev] Default hashing function for integers (DenseMapInfo.h)</a>。有关malloc指针的16字节偏移的问题没有深入思考过，等以后有时间再进行吧。</p>
 <h4 id="3-2-weak-entry-t插入"><a href="#3-2-weak-entry-t插入" class="headerlink" title="3.2 weak_entry_t插入"></a>3.2 <code>weak_entry_t</code>插入</h4><p><code>grow_refs_and_insert</code>函数：</p>
 <figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">__attribute__((noinline, used))</span><br><span class="line"><span class="keyword">static</span> <span class="keyword">void</span> grow_refs_and_insert(weak_entry_t *entry, </span><br><span class="line">                                 objc_object **new_referrer)</span><br><span class="line">&#123;</span><br><span class="line">    assert(entry-&gt;out_of_line());</span><br><span class="line"></span><br><span class="line">    size_t old_size = TABLE_SIZE(entry);</span><br><span class="line">    <span class="comment">// 初始化size为8，然后以2倍大小进行增长</span></span><br><span class="line">    size_t new_size = old_size ? old_size * <span class="number">2</span> : <span class="number">8</span>;</span><br><span class="line"></span><br><span class="line">    size_t num_refs = entry-&gt;num_refs;</span><br><span class="line">    weak_referrer_t *old_refs = entry-&gt;referrers;</span><br><span class="line">    <span class="comment">// 新的容器大小为new_size，增加一个元素后，size-1并赋值给entry-&gt;mask</span></span><br><span class="line">    entry-&gt;mask = new_size - <span class="number">1</span>;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 重新分配空间</span></span><br><span class="line">    entry-&gt;referrers = (weak_referrer_t *)</span><br><span class="line">        calloc(TABLE_SIZE(entry), <span class="keyword">sizeof</span>(weak_referrer_t));</span><br><span class="line">    <span class="comment">// 初始化</span></span><br><span class="line">    entry-&gt;num_refs = <span class="number">0</span>;</span><br><span class="line">    entry-&gt;max_hash_displacement = <span class="number">0</span>;</span><br><span class="line">    <span class="comment">// 将老数据逐个复制到新的entry存储空间中</span></span><br><span class="line">    <span class="keyword">for</span> (size_t i = <span class="number">0</span>; i &lt; old_size &amp;&amp; num_refs &gt; <span class="number">0</span>; i++) &#123;</span><br><span class="line">        <span class="keyword">if</span> (old_refs[i] != <span class="literal">nil</span>) &#123;</span><br><span class="line">            append_referrer(entry, old_refs[i]);</span><br><span class="line">            num_refs--;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// Insert</span></span><br><span class="line">    <span class="comment">// entry插入新的数据</span></span><br><span class="line">    append_referrer(entry, new_referrer);</span><br><span class="line">    <span class="comment">// 释放老的存储空间</span></span><br><span class="line">    <span class="keyword">if</span> (old_refs) free(old_refs);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>向<code>weak_entry_t</code>中hash表新增数据时，首先创建一个新的存储空间（大小为<code>old_size * 2</code>），然后将所有的老数据复制到新的空间中，然后再将新的数据插入到新的空间中，最后释放老的存储空间。为什么要这么做呢？我们知道C数组的长度在创建的时候就固定了的，为了能够动态地向数组中添加新元素，就需要不断地申请新的内存空间（并且要求是连续的内存地址），这样就必须把老的数据复制到新申请的内存空间中，然后再加入新增的数据，最后释放掉原内存空间。同时，为了避免频繁地申请新的内存空间和复制数据，将新内存空间大小的增长设置为原来的2倍。</p>
@@ -561,6 +560,10 @@
 
           <div class="post-nav-prev post-nav-item">
             
+              <a href="/2019/01/23/iOS-Runtime随笔——DenseMap浅析/" rel="prev" title="iOS-Runtime随笔——DenseMap浅析">
+                iOS-Runtime随笔——DenseMap浅析 <i class="fa fa-chevron-right"></i>
+              </a>
+            
           </div>
         </div>
       
@@ -639,7 +642,7 @@
               
                 <a href="/archives">
               
-                  <span class="site-state-item-count">12</span>
+                  <span class="site-state-item-count">13</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -661,7 +664,7 @@
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">10</span>
+                  <span class="site-state-item-count">11</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
