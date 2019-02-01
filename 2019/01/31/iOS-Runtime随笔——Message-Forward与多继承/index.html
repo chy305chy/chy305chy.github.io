@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next pisces use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Objective-C, runtime, message," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="开发中我们可能遇到过这样的异常：unrecognized selector sent to xxxxxx，当我们调用的方法没有对应的实现(IMP)时，系统会抛出如上异常。但是在抛出异常之前，我们还有三次补救的机会：  动态方法解析：Dynamic Method Resolution 快速转发：Fast Forwarding 正常转发：Normal Forwarding  这个就是Objective">
+<meta name="keywords" content="Objective-C, runtime, message">
+<meta property="og:type" content="article">
+<meta property="og:title" content="iOS-Runtime随笔——Message Forward与应用">
+<meta property="og:url" content="https://chy305chy.github.io/2019/01/31/iOS-Runtime随笔——Message-Forward与多继承/index.html">
+<meta property="og:site_name" content="崔岚清的个人博客">
+<meta property="og:description" content="开发中我们可能遇到过这样的异常：unrecognized selector sent to xxxxxx，当我们调用的方法没有对应的实现(IMP)时，系统会抛出如上异常。但是在抛出异常之前，我们还有三次补救的机会：  动态方法解析：Dynamic Method Resolution 快速转发：Fast Forwarding 正常转发：Normal Forwarding  这个就是Objective">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="https://chy305chy.github.io/2019/01/31/iOS-Runtime随笔——Message-Forward与多继承/1.jpg">
+<meta property="og:updated_time" content="2019-02-01T02:19:33.436Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="iOS-Runtime随笔——Message Forward与应用">
+<meta name="twitter:description" content="开发中我们可能遇到过这样的异常：unrecognized selector sent to xxxxxx，当我们调用的方法没有对应的实现(IMP)时，系统会抛出如上异常。但是在抛出异常之前，我们还有三次补救的机会：  动态方法解析：Dynamic Method Resolution 快速转发：Fast Forwarding 正常转发：Normal Forwarding  这个就是Objective">
+<meta name="twitter:image" content="https://chy305chy.github.io/2019/01/31/iOS-Runtime随笔——Message-Forward与多继承/1.jpg">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://chy305chy.github.io/2019/01/31/iOS-Runtime随笔——Message-Forward与多继承/"/>
+
+
+
+
+
+  <title>iOS-Runtime随笔——Message Forward与应用 | 崔岚清的个人博客</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">崔岚清的个人博客</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">集跬步至千里，积小流成江海</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://chy305chy.github.io/2019/01/31/iOS-Runtime随笔——Message-Forward与多继承/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Cui Lanqing">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="崔岚清的个人博客">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">iOS-Runtime随笔——Message Forward与应用</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-01-31T10:52:05+08:00">
+                2019-01-31
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/iOS开发/" itemprop="url" rel="index">
+                    <span itemprop="name">iOS开发</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+                <a href="/2019/01/31/iOS-Runtime随笔——Message-Forward与多继承/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count valine-comment-count" data-xid="/2019/01/31/iOS-Runtime随笔——Message-Forward与多继承/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>开发中我们可能遇到过这样的异常：<code>unrecognized selector sent to xxxxxx</code>，当我们调用的方法没有对应的实现(<code>IMP</code>)时，系统会抛出如上异常。但是在抛出异常之前，我们还有三次补救的机会：</p>
+<ul>
+<li>动态方法解析：Dynamic Method Resolution</li>
+<li>快速转发：Fast Forwarding</li>
+<li>正常转发：Normal Forwarding</li>
+</ul>
+<p>这个就是Objective-C的消息转发。从上到下，进行消息转发的开销越来越大。网上有关这三个步骤的介绍很多，这里就不再重复了。本文着重从源码角度分析一下为什么 Message Forward 是由这几个步骤组成，以及苹果设计的 Message Forward 机制有什么具体作用等。</p>
+<h4 id="1、objc-msgSend"><a href="#1、objc-msgSend" class="headerlink" title="1、objc_msgSend"></a>1、objc_msgSend</h4><p>我们知道，Objective-C的方法调用实际上会转换成消息发送，比如:</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[obj message];</span><br></pre></td></tr></table></figure>
+<p>最终会转换成<code>objc_msgSend</code>函数调用:<code>objc_msgSend(receiver, @selector(message));</code>。有关<code>objc_msgSend</code>函数，它的定义是<code>id objc_msgSend(id self, SEL _cmd, ...)</code>，第一个参数为接收消息的对象，第二个参数为要调用的函数实现的选择子<code>SEL</code>，这两个参数为隐式参数，由系统自动生成，<code>...</code>为可变参数列表。我在<a href="https://chy305chy.github.io/2018/08/14/%E4%BB%8E%E4%B8%80%E4%B8%AABUG%E8%B0%88%E8%B5%B7%EF%BC%8C%E5%89%96%E6%9E%90objc-msgSend%E5%87%BD%E6%95%B0%E7%9A%84%E5%BA%95%E5%B1%82%E5%AE%9E%E7%8E%B0/">之前的一篇文章</a>中从汇编的角度分析过其实现原理，<code>objc_msgSend</code>函数由汇编实现，它的作用是：</p>
+<ul>
+<li>根据传入的对象，获取其isa指针，并根据isa指针找到对象所属的类</li>
+<li>获取类的方法缓存，并根据selector从缓存中查找对应的IMP</li>
+<li>如果从缓存中找到IMP，直接调用</li>
+<li>如果没有从缓存中找到，调用C函数（__class_lookupMethodAndLoadCache3）继续查询，并将查询结果存入类的方法缓存</li>
+</ul>
+<p>这一小节分析一下ARM64平台下<code>objc_msgSend</code>函数的实现，由于汇编代码看起来太不直观，这里就不贴出来了，将其转换成C伪代码(为了简化流程，省略<code>TaggedPointer</code>部分)，有兴趣的同学可以看下<code>objc-msg-arm64.s</code>文件中的汇编源码。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">id <span class="title">objc_msgSend</span><span class="params">(id self, SEL _cmd, ...)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (!self) &#123;</span><br><span class="line">        <span class="keyword">return</span> nil;</span><br><span class="line">    &#125;</span><br><span class="line">    IMP imp = nil;</span><br><span class="line">    imp = cacheLookUp(self-&gt;isa, _cmd);</span><br><span class="line">    <span class="keyword">if</span> (!imp) &#123;</span><br><span class="line">        imp = objc_msgSend_uncached(self, self-&gt;isa, _cmd);</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">if</span> (imp) &#123;</span><br><span class="line">        imp(self, op, ...);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        fatal_error(<span class="string">"unrecognized selector sent to xxxxxx"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 从缓存中查找对应的IMP</span></span><br><span class="line"><span class="function">IMP <span class="title">cacheLookUp</span><span class="params">(id obj, Class cls, SEL sel)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 先从本类中查找，如果没有，继续向父类查找，直到查找到NSObject为止</span></span><br><span class="line">    Class currCls = cls;</span><br><span class="line">    IMP imp = nil;</span><br><span class="line">    <span class="keyword">while</span> (<span class="number">1</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> (!currCls) <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">if</span> (currCls == currCls-&gt;superclass) <span class="keyword">break</span>;</span><br><span class="line">        imp = getImpFromCache(obj, currCls, sel);</span><br><span class="line">        <span class="keyword">if</span> (imp) <span class="keyword">break</span>;</span><br><span class="line">        currCls = currCls-&gt;superclass;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> imp;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 缓存中未找到，进入__objc_msgSend_uncached函数</span></span><br><span class="line"><span class="function">IMP <span class="title">objc_msgSend_uncached</span><span class="params">(id obj, Class cls, SEL sel)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 调用MethodTableLookup从未缓存的方法列表中查找IMP</span></span><br><span class="line">    <span class="comment">// 在源文件中，MethodTableLookup是个宏定义</span></span><br><span class="line">    IMP imp = MethodTableLookup(cls, sel);</span><br><span class="line">    <span class="comment">// 如果还未找到，跳转到__class_lookupMethodAndLoadCache3</span></span><br><span class="line">    <span class="keyword">if</span> (!imp) &#123;</span><br><span class="line">        imp = class_lookupMethodAndLoadCache3(obj, cls, sel);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> imp;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 这个函数在objc-runtime-new.mm文件中定义</span></span><br><span class="line">IMP _class_lookupMethodAndLoadCache3(id obj, SEL sel, Class cls)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">return</span> lookUpImpOrForward(cls, sel, obj,  YES<span class="comment">/*initialize*/</span>, NO<span class="comment">/*cache*/</span>, YES<span class="comment">/*resolver*/</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>至此，<code>objc_msgSend</code>函数中的<code>IMP</code>查找流程比较清晰了：</p>
+<ol>
+<li>首先从缓存中查找，如果当前类没有找到，继续向其父类查找，直到查询到<code>NSObject</code>为止</li>
+<li>如果步骤1没有找到对应的<code>IMP</code>，在类的未缓存的方法列表中查找，根据isa指针，直到查找到<code>NSObject</code>为止</li>
+<li>如果步骤2也没有找到，转到<code>_class_lookupMethodAndLoadCache3</code>，调用<code>lookUpImpOrForward</code>继续查找并进入消息转发流程。</li>
+</ol>
+<h4 id="2、lookUpImpOrForward与Message-Forwarding"><a href="#2、lookUpImpOrForward与Message-Forwarding" class="headerlink" title="2、lookUpImpOrForward与Message Forwarding"></a>2、lookUpImpOrForward与Message Forwarding</h4><p>先看下<code>lookUpImpOrForward</code>函数的源码：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">IMP <span class="title">lookUpImpOrForward</span><span class="params">(Class cls, SEL sel, id inst, </span></span></span><br><span class="line"><span class="function"><span class="params">                       <span class="keyword">bool</span> initialize, <span class="keyword">bool</span> cache, <span class="keyword">bool</span> resolver)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    IMP imp = nil;</span><br><span class="line">    <span class="keyword">bool</span> triedResolver = NO;</span><br><span class="line"></span><br><span class="line">    runtimeLock.assertUnlocked();</span><br><span class="line">    <span class="comment">// 从缓存中查找，由于objc_msgSend函数进来时，cache参数设置为NO，这一步忽略</span></span><br><span class="line">    <span class="keyword">if</span> (cache) &#123;</span><br><span class="line">        imp = cache_getImp(cls, sel);</span><br><span class="line">        <span class="keyword">if</span> (imp) <span class="keyword">return</span> imp;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    runtimeLock.lock();</span><br><span class="line">    ...</span><br><span class="line">    </span><br><span class="line"> retry:    </span><br><span class="line">    runtimeLock.assertLocked();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 从当前类及父类的方法缓存和方法列表中查找IMP</span></span><br><span class="line">    <span class="comment">// 如果找到，对IMP进行缓存，这部分代码省略</span></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 经过以上步骤都没有找到IMP，执行一次动态方法解析</span></span><br><span class="line">    <span class="keyword">if</span> (resolver  &amp;&amp;  !triedResolver) &#123;</span><br><span class="line">        runtimeLock.unlock();</span><br><span class="line">        _class_resolveMethod(cls, sel, inst);</span><br><span class="line">        runtimeLock.lock();</span><br><span class="line">        triedResolver = YES;</span><br><span class="line">        <span class="keyword">goto</span> retry;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// IMP未找到，动态方法解析失败，进入消息转发流程</span></span><br><span class="line">    imp = (IMP)_objc_msgForward_impcache;</span><br><span class="line">    cache_fill(cls, sel, imp, inst);</span><br><span class="line"></span><br><span class="line"> done:</span><br><span class="line">    runtimeLock.unlock();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> imp;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>lookUpImpOrForward</code>会从当前类及其父类的的方法缓存和方法列表中查找<code>IMP</code>，如果未找到，执行动态方法解析，如果动态方法解析也失败，进入<code>Message Forwarding</code>流程。</p>
+<h5 id="2-1-动态方法解析"><a href="#2-1-动态方法解析" class="headerlink" title="2.1 动态方法解析"></a>2.1 动态方法解析</h5><p><code>_class_resolveMethod</code>调用<code>_class_resolveInstanceMethod</code>查看当前类是否实现了<code>resolveInstanceMethod</code>方法(对于类方法，对应的是<code>resolveClassMethod</code>)，如果实现了，<code>resolved</code>置<code>true</code>，重新执行一次<code>lookUpImpOrNil</code>流程，将新的<code>IMP</code>加入缓存并执行。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="keyword">void</span> _class_resolveInstanceMethod(Class cls, SEL sel, id inst)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">if</span> (! lookUpImpOrNil(cls-&gt;ISA(), SEL_resolveInstanceMethod, cls, </span><br><span class="line">                         NO<span class="comment">/*initialize*/</span>, YES<span class="comment">/*cache*/</span>, NO<span class="comment">/*resolver*/</span>)) </span><br><span class="line">    &#123;</span><br><span class="line">        <span class="comment">// 未实现动态方法解析，直接返回</span></span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    BOOL (*msg)(Class, SEL, SEL) = (typeof(msg))objc_msgSend;</span><br><span class="line">    <span class="keyword">bool</span> resolved = msg(cls, SEL_resolveInstanceMethod, sel);</span><br><span class="line">    IMP imp = lookUpImpOrNil(cls, sel, inst, NO<span class="comment">/*initialize*/</span>, YES<span class="comment">/*cache*/</span>, NO<span class="comment">/*resolver*/</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h5 id="2-2-消息转发"><a href="#2-2-消息转发" class="headerlink" title="2.2 消息转发"></a>2.2 消息转发</h5><p>上面讲到，当方法缓存、方法列表和动态方法解析都未能找到<code>IMP</code>时，会调用<code>_objc_msgForward_impcache</code>进入<code>forwarding</code>流程，但是关于这个函数，我只在源码中找到了如下实现：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/********************************************************************</span></span><br><span class="line"><span class="comment">*</span></span><br><span class="line"><span class="comment">* id _objc_msgForward(id self, SEL _cmd,...);</span></span><br><span class="line"><span class="comment">*</span></span><br><span class="line"><span class="comment">* _objc_msgForward is the externally-callable</span></span><br><span class="line"><span class="comment">*   function returned by things like method_getImplementation().</span></span><br><span class="line"><span class="comment">* _objc_msgForward_impcache is the function pointer actually stored in</span></span><br><span class="line"><span class="comment">*   method caches.</span></span><br><span class="line"><span class="comment">*</span></span><br><span class="line"><span class="comment">********************************************************************/</span></span><br><span class="line"></span><br><span class="line">	STATIC_ENTRY __objc_msgForward_impcache</span><br><span class="line"></span><br><span class="line">	<span class="comment">// No stret specialization.</span></span><br><span class="line">	b	__objc_msgForward</span><br><span class="line"></span><br><span class="line">	END_ENTRY __objc_msgForward_impcache</span><br><span class="line"></span><br><span class="line">	</span><br><span class="line">	ENTRY __objc_msgForward</span><br><span class="line"></span><br><span class="line">	adrp	x17, __objc_forward_handler@PAGE</span><br><span class="line">	ldr	p17, [x17, __objc_forward_handler@PAGEOFF]</span><br><span class="line">	TailCallFunctionPointer x17</span><br><span class="line">	</span><br><span class="line">	END_ENTRY __objc_msgForward</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br></pre></td></tr></table></figure>
+<p>可以看到这里涉及到了<code>__objc_forward_handler</code>的设置和读取。</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">2</span>   CoreFoundation     <span class="number">0x00000001086a1f44</span> -[<span class="built_in">NSObject</span>(<span class="built_in">NSObject</span>) doesNotRecognizeSelector:] + <span class="number">132</span></span><br><span class="line"><span class="number">3</span>   <span class="built_in">UIKitCore</span>          <span class="number">0x0000000115f0bb4a</span> -[<span class="built_in">UIResponder</span> doesNotRecognizeSelector:] + <span class="number">287</span></span><br><span class="line"><span class="number">4</span>   CoreFoundation     <span class="number">0x0000000108687ed6</span> ___forwarding___ + <span class="number">1446</span></span><br><span class="line"><span class="number">5</span>   CoreFoundation     <span class="number">0x0000000108689da8</span> _CF_forwarding_prep_0 + <span class="number">120</span></span><br></pre></td></tr></table></figure>
+<p>从<code>unrecognized selector sent to xxx</code>崩溃是的堆栈信息可以看到，这里还涉及到了CF框架中的<code>_CF_forwarding_prep_0</code>和<code>___forwarding___</code>两个函数，有关转发的所有逻辑都在<code>___forwarding___</code>中，而苹果公布的<code>CoreFoundation</code>源码中删去了这部分内容。网上大神对<code>__CFInitialize</code>进行逆向后得到了<code>___forwarding___</code>的伪代码：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">int</span> __forwarding__(<span class="keyword">void</span> *frameStackPointer, <span class="keyword">int</span> isStret) &#123;</span><br><span class="line">  id receiver = *(id *)frameStackPointer;</span><br><span class="line">  SEL sel = *(SEL *)(frameStackPointer + <span class="number">8</span>);</span><br><span class="line">  <span class="keyword">const</span> <span class="keyword">char</span> *selName = sel_getName(sel);</span><br><span class="line">  Class receiverClass = object_getClass(receiver);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 调用 forwardingTargetForSelector:</span></span><br><span class="line">  <span class="keyword">if</span> (class_respondsToSelector(receiverClass, @selector(forwardingTargetForSelector:))) &#123;</span><br><span class="line">    id forwardingTarget = [receiver forwardingTargetForSelector:sel];</span><br><span class="line">    <span class="keyword">if</span> (forwardingTarget &amp;&amp; forwarding != receiver) &#123;</span><br><span class="line">    	<span class="keyword">if</span> (isStret == <span class="number">1</span>) &#123;</span><br><span class="line">    		<span class="keyword">int</span> ret;</span><br><span class="line">    		objc_msgSend_stret(&amp;ret,forwardingTarget, sel, ...);</span><br><span class="line">    		<span class="keyword">return</span> ret;</span><br><span class="line">    	&#125;</span><br><span class="line">      <span class="keyword">return</span> objc_msgSend(forwardingTarget, sel, ...);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 僵尸对象</span></span><br><span class="line">  <span class="keyword">const</span> <span class="keyword">char</span> *className = class_getName(receiverClass);</span><br><span class="line">  <span class="keyword">const</span> <span class="keyword">char</span> *zombiePrefix = <span class="string">"_NSZombie_"</span>;</span><br><span class="line">  <span class="keyword">size_t</span> prefixLen = <span class="built_in">strlen</span>(zombiePrefix); <span class="comment">// 0xa</span></span><br><span class="line">  <span class="keyword">if</span> (<span class="built_in">strncmp</span>(className, zombiePrefix, prefixLen) == <span class="number">0</span>) &#123;</span><br><span class="line">    CFLog(kCFLogLevelError,</span><br><span class="line">          @<span class="string">"*** -[%s %s]: message sent to deallocated instance %p"</span>,</span><br><span class="line">          className + prefixLen,</span><br><span class="line">          selName,</span><br><span class="line">          receiver);</span><br><span class="line">    &lt;breakpoint-interrupt&gt;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 调用 methodSignatureForSelector 获取方法签名后再调用 forwardInvocation</span></span><br><span class="line">  <span class="keyword">if</span> (class_respondsToSelector(receiverClass, @selector(methodSignatureForSelector:))) &#123;</span><br><span class="line">    NSMethodSignature *methodSignature = [receiver methodSignatureForSelector:sel];</span><br><span class="line">    <span class="keyword">if</span> (methodSignature) &#123;</span><br><span class="line">      BOOL signatureIsStret = [methodSignature _frameDescriptor]-&gt;returnArgInfo.flags.isStruct;</span><br><span class="line">      <span class="keyword">if</span> (signatureIsStret != isStret) &#123;</span><br><span class="line">        CFLog(kCFLogLevelWarning ,</span><br><span class="line">              @<span class="string">"*** NSForwarding: warning: method signature and compiler disagree on struct-return-edness of '%s'.  Signature thinks it does%s return a struct, and compiler thinks it does%s."</span>,</span><br><span class="line">              selName,</span><br><span class="line">              signatureIsStret ? <span class="string">""</span> : <span class="keyword">not</span>,</span><br><span class="line">              isStret ? <span class="string">""</span> : <span class="keyword">not</span>);</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">if</span> (class_respondsToSelector(receiverClass, @selector(forwardInvocation:))) &#123;</span><br><span class="line">        NSInvocation *invocation = [NSInvocation _invocationWithMethodSignature:methodSignature frame:frameStackPointer];</span><br><span class="line"></span><br><span class="line">        [receiver forwardInvocation:invocation];</span><br><span class="line"></span><br><span class="line">        <span class="keyword">void</span> *returnValue = <span class="literal">NULL</span>;</span><br><span class="line">        [invocation getReturnValue:&amp;value];</span><br><span class="line">        <span class="keyword">return</span> returnValue;</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        CFLog(kCFLogLevelWarning ,</span><br><span class="line">              @<span class="string">"*** NSForwarding: warning: object %p of class '%s' does not implement forwardInvocation: -- dropping message"</span>,</span><br><span class="line">              receiver,</span><br><span class="line">              className);</span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  SEL *registeredSel = sel_getUid(selName);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// selector 是否已经在 Runtime 注册过</span></span><br><span class="line">  <span class="keyword">if</span> (sel != registeredSel) &#123;</span><br><span class="line">    CFLog(kCFLogLevelWarning ,</span><br><span class="line">          @<span class="string">"*** NSForwarding: warning: selector (%p) for message '%s' does not match selector known to Objective C runtime (%p)-- abort"</span>,</span><br><span class="line">          sel,</span><br><span class="line">          selName,</span><br><span class="line">          registeredSel);</span><br><span class="line">  &#125; <span class="comment">// doesNotRecognizeSelector</span></span><br><span class="line">  <span class="keyword">else</span> <span class="keyword">if</span> (class_respondsToSelector(receiverClass,@selector(doesNotRecognizeSelector:))) &#123;</span><br><span class="line">    [receiver doesNotRecognizeSelector:sel];</span><br><span class="line">  &#125; </span><br><span class="line">  <span class="keyword">else</span> &#123;</span><br><span class="line">    CFLog(kCFLogLevelWarning ,</span><br><span class="line">          @<span class="string">"*** NSForwarding: warning: object %p of class '%s' does not implement doesNotRecognizeSelector: -- abort"</span>,</span><br><span class="line">          receiver,</span><br><span class="line">          className);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// The point of no return.</span></span><br><span class="line">  kill(getpid(), <span class="number">9</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>___forwarding___</code>包含了整个消息转发路径的逻辑，概括如下：</p>
+<ol>
+<li>先调用 <code>forwardingTargetForSelector</code> 方法获取新的 <code>target</code> 作为 <code>receiver</code> 重新执行 <code>selector</code>，如果返回的内容不合法（为 <code>nil</code> 或者跟旧 <code>receiver</code> 一样），那就进入第二步。</li>
+<li>调用 <code>methodSignatureForSelector</code> 获取方法签名后，判断返回类型信息是否正确，再调用 <code>forwardingTargetForSelector</code> 执行 <code>NSInvocation</code> 对象，并将结果返回。如果对象没实现 <code>methodSignatureForSelector</code> 方法，进入第三步。</li>
+<li>调用 <code>doesNotRecognizeSelector</code> 方法。</li>
+</ol>
+<h5 id="2-3-小结"><a href="#2-3-小结" class="headerlink" title="2.3 小结"></a>2.3 小结</h5><p>借用网上的一张图片对Objective-C的消息发送和转发流程总结一下：</p>
+<p><img src="/2019/01/31/iOS-Runtime随笔——Message-Forward与多继承/1.jpg" alt="Objective-C的消息发送和转发流程"></p>
+<h4 id="3、消息转发机制的应用"><a href="#3、消息转发机制的应用" class="headerlink" title="3、消息转发机制的应用"></a>3、消息转发机制的应用</h4><p>说了这么多，了解消息转发的过程对开发有什么帮助呢，或者消息转发有什么实际的应用呢？</p>
+<h4 id="3-1-weak-proxy"><a href="#3-1-weak-proxy" class="headerlink" title="3.1 weak proxy"></a>3.1 weak proxy</h4><p>在使用NSTimer或者CADisplayLink等定时器时，Timer会对其target(一般是<code>self</code>)进行强引用，稍微不注意可能会出现内存泄露问题，这时可以创建一个<code>WeakProxy</code>对象，由该对象弱引用<code>self</code>，将Timer的target设置为<code>WeakProxy</code>对象，并使用消息转发机制，将所有发送给<code>WeakProxy</code>的消息转发给<code>self</code>。由此打破retain cycle链，解决内存泄露问题。<code>YYKit</code>框架中就使用了这种方法(<code>YYWeakProxy</code>)。</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">@interface</span> <span class="title">WeakProxy</span>: <span class="title">NSProxy</span></span></span><br><span class="line"><span class="comment">// 注意这里是weak属性，打破循环引用链</span></span><br><span class="line"><span class="keyword">@property</span> (<span class="keyword">nullable</span>, <span class="keyword">nonatomic</span>, <span class="keyword">weak</span>, <span class="keyword">readonly</span>) <span class="keyword">id</span> target;</span><br><span class="line">- (<span class="keyword">instancetype</span>)initWithTarget:(<span class="keyword">id</span>)target;</span><br><span class="line">+ (<span class="keyword">instancetype</span>)proxyWithTarget:(<span class="keyword">id</span>)target;</span><br><span class="line"><span class="keyword">@end</span></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">@implementation</span> <span class="title">WeakProxy</span></span></span><br><span class="line"></span><br><span class="line">- (<span class="keyword">instancetype</span>)initWithTarget:(<span class="keyword">id</span>)target &#123;</span><br><span class="line">    _target = target;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">self</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">+ (<span class="keyword">instancetype</span>)proxyWithTarget:(<span class="keyword">id</span>)target &#123;</span><br><span class="line">    <span class="keyword">return</span> [[WeakProxy alloc] initWithTarget:target];</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/// 消息转发</span></span><br><span class="line">- (<span class="keyword">id</span>)forwardingTargetForSelector:(SEL)selector &#123;</span><br><span class="line">    <span class="comment">// 所有发送给WeakProxy的消息均转发给target处理</span></span><br><span class="line">    <span class="keyword">return</span> _target;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">- (<span class="built_in">BOOL</span>)respondsToSelector:(SEL)aSelector &#123;</span><br><span class="line">    <span class="keyword">return</span> [_target respondsToSelector:aSelector];</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">@end</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 创建Timer的时候使用WeakProxy作为target</span></span><br><span class="line">_link = [<span class="built_in">CADisplayLink</span> displayLinkWithTarget:[WeakProxy proxyWithTarget:<span class="keyword">self</span>] selector:<span class="keyword">@selector</span>(step:)];</span><br></pre></td></tr></table></figure>
+<h4 id="3-2-多重代理"><a href="#3-2-多重代理" class="headerlink" title="3.2 多重代理"></a>3.2 多重代理</h4><p>代理一般是一对一的，如果开发中遇到这样的问题：对某处做了修改，希望同时在多个页面更新。比如在聊天时，给对方加个备注，需要在资料页面、聊天详情页面、联系人列表页同步更新。这时可以用多重代理的方法实现。而多重代理的一种实现方式就是用消息转发。<br>设计一个中间层，中间层接收消息并负责转发给不同的页面。<br>具体代码可以参考别人写的一个<a href="https://github.com/JimWithJiang/MultiDelegateDemo" target="_blank" rel="noopener">Demo</a></p>
+<h4 id="3-3-模拟多继承"><a href="#3-3-模拟多继承" class="headerlink" title="3.3 模拟多继承"></a>3.3 模拟多继承</h4><blockquote>
+<p>来自Wikipedia:<br>面向对象的程序设计中，继承描述了两种类型或两个类的对象，其中一种是另外一种的“子类型”或“子类”。子类继承了父类的特征，允许分享功能。例如，可以创造一个“哺乳类动物”类别，拥有进食、繁殖等的功能；然后定义一个子类型“猫”，它可以从父类继承上述功能，不需重新编写程序，同时增加属于自己的新功能，例如“追赶老鼠”。</p>
+</blockquote>
+<blockquote>
+<p>然而，如果想同时自多于一个结构继承，例如容许“猫”继承“哺乳类动物”之余，同时继承“卡通角色”和“宠物”，缺乏多重继承往往会导致十分笨拙的混合继承，或迫使同一个功能在多于一个地方被重写。（这带来了维护上的问题）</p>
+</blockquote>
+<p>虽然多重继承可以导致某些令人混淆的情况，但是在OOP中它还是有优点的。但是OC并没有实现真正意义上的多继承 (Swift与Java类似，同样不允许一个类继承自多个类，只能通过遵循多个协议来间接实现多继承)，对于多继承，我们可以借助消息转发来实现。</p>
+<p>示例代码如下：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Father类，有一个方法：work</span></span><br><span class="line">- (<span class="keyword">void</span>)work &#123;</span><br><span class="line">    <span class="built_in">NSLog</span>(<span class="string">@"I'm working."</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Mother类，有一个方法：cook</span></span><br><span class="line">- (<span class="keyword">void</span>)cook &#123;</span><br><span class="line">    <span class="built_in">NSLog</span>(<span class="string">@"I'm cooking."</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Son类，继承自Father，持有Mother对象</span></span><br><span class="line"><span class="class"><span class="keyword">@interface</span> <span class="title">Son</span> : <span class="title">Father</span></span></span><br><span class="line"><span class="keyword">@property</span> (<span class="keyword">nonatomic</span>, <span class="keyword">strong</span>) Mother *mother;</span><br><span class="line"><span class="keyword">@end</span></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">@implementation</span> <span class="title">Son</span></span></span><br><span class="line">- (<span class="keyword">instancetype</span>)init</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">self</span> = [<span class="keyword">super</span> init];</span><br><span class="line">    <span class="keyword">if</span> (<span class="keyword">self</span>) &#123;</span><br><span class="line">        _mother = [Mother new];</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">self</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">- (<span class="keyword">id</span>)forwardingTargetForSelector:(SEL)aSelector &#123;</span><br><span class="line">    <span class="keyword">if</span> ([_mother respondsToSelector:aSelector]) &#123;</span><br><span class="line">        <span class="keyword">return</span> _mother;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">nil</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">@end</span></span><br></pre></td></tr></table></figure>
+<p>在<code>Son</code>类中重载了<code>- (id)forwardingTargetForSelector:(SEL)aSelector;</code>方法，当它无法处理消息时，系统会调用这个方法将消息转发给指定的target。测试代码和结果如下：</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Son *son = [[Son alloc] init];</span><br><span class="line">[son work];</span><br><span class="line">[son performSelector:<span class="keyword">@selector</span>(cook)];</span><br><span class="line"></span><br><span class="line"><span class="comment">// 输出</span></span><br><span class="line">I'm working.</span><br><span class="line">I'm cooking.</span><br></pre></td></tr></table></figure>
+<p>我们还可以利用<code>forwardInvocation</code>进行消息转发，对上述的<code>Son</code>类进行改造，也能达到同样的类似多继承的效果。</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">@implementation</span> <span class="title">Son</span></span></span><br><span class="line"></span><br><span class="line">- (<span class="keyword">instancetype</span>)init</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">self</span> = [<span class="keyword">super</span> init];</span><br><span class="line">    <span class="keyword">if</span> (<span class="keyword">self</span>) &#123;</span><br><span class="line">        _mother = [Mother new];</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">self</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">- (<span class="built_in">NSMethodSignature</span> *)methodSignatureForSelector:(SEL)aSelector &#123;</span><br><span class="line">    <span class="built_in">NSMethodSignature</span> *signature = [<span class="keyword">super</span> methodSignatureForSelector:aSelector];</span><br><span class="line">    <span class="keyword">if</span> (signature) &#123;</span><br><span class="line">        <span class="keyword">return</span> signature;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> ([_mother respondsToSelector:aSelector]) &#123;</span><br><span class="line">        signature = [_mother methodSignatureForSelector:aSelector];</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> signature;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">- (<span class="keyword">void</span>)forwardInvocation:(<span class="built_in">NSInvocation</span> *)anInvocation &#123;</span><br><span class="line">    <span class="keyword">if</span> ([_mother respondsToSelector:anInvocation.selector]) &#123;</span><br><span class="line">        [anInvocation invokeWithTarget:_mother];</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">@end</span></span><br></pre></td></tr></table></figure>
+<h4 id="参考文章"><a href="#参考文章" class="headerlink" title="参考文章"></a>参考文章</h4><ul>
+<li><a href="http://www.arigrant.com/blog/2013/12/13/a-selector-left-unhandled" target="_blank" rel="noopener">Hmmm, What’s that Selector?</a></li>
+<li><a href="http://yulingtianxia.com/blog/2016/06/15/Objective-C-Message-Sending-and-Forwarding/" target="_blank" rel="noopener">Objective-C 消息发送与转发机制原理</a></li>
+</ul>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Objective-C-runtime-message/" rel="tag"># Objective-C, runtime, message</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/01/23/iOS-Runtime随笔——DenseMap浅析/" rel="next" title="iOS-Runtime随笔——DenseMap浅析">
+                <i class="fa fa-chevron-left"></i> iOS-Runtime随笔——DenseMap浅析
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+    <div class="comments" id="comments">
+    </div>
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Cui Lanqing</p>
+              <p class="site-description motion-element" itemprop="description">一枚有梦想的程序猿</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives">
+              
+                  <span class="site-state-item-count">14</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">12</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#1、objc-msgSend"><span class="nav-number">1.</span> <span class="nav-text">1、objc_msgSend</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2、lookUpImpOrForward与Message-Forwarding"><span class="nav-number">2.</span> <span class="nav-text">2、lookUpImpOrForward与Message Forwarding</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#2-1-动态方法解析"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 动态方法解析</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-2-消息转发"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 消息转发</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-3-小结"><span class="nav-number">2.3.</span> <span class="nav-text">2.3 小结</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3、消息转发机制的应用"><span class="nav-number">3.</span> <span class="nav-text">3、消息转发机制的应用</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-1-weak-proxy"><span class="nav-number">4.</span> <span class="nav-text">3.1 weak proxy</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-2-多重代理"><span class="nav-number">5.</span> <span class="nav-text">3.2 多重代理</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-3-模拟多继承"><span class="nav-number">6.</span> <span class="nav-text">3.3 模拟多继承</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#参考文章"><span class="nav-number">7.</span> <span class="nav-text">参考文章</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+<div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Cui Lanqing</span>
+
+  
+</div>
+
+
+  <div class="powered-by">
+    <i class="fa fa-user-md"></i><span id="busuanzi_container_site_uv">
+    本站访客数:<span id="busuanzi_value_site_uv"></span>
+  </span>
+  </div>
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Pisces</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  <script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+  <script src="//unpkg.com/valine/dist/Valine.min.js"></script>
+  
+  <script type="text/javascript">
+    var GUEST = ['nick','mail','link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item=>{
+      return GUEST.indexOf(item)>-1;
+    });
+    new Valine({
+        el: '#comments' ,
+        verify: false,
+        notify: false,
+        appId: 'WCdYKBzVHyUAmYLBFSD0S1EM-gzGzoHsz',
+        appKey: 'TeFriUwpGPw3n0GaJ9PSdzEh',
+        placeholder: 'Just go go',
+        avatar:'mm',
+        guest_info:guest,
+        pageSize:'10' || 10,
+    });
+  </script>
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
