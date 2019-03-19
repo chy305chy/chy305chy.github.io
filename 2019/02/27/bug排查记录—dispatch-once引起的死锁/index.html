@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next pisces use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Objective-C, libdispatch, 经验总结, bug/crash," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="该 bug 表现为：测试环境下，启动过程中 App 卡死，不响应任何操作；真机环境下，启动后直接crash。重现 bug 后暂停程序并打印堆栈信息，符号化后的堆栈信息涉及到公司内部代码 这里就不全贴出来了，栈顶的三条记录如下： 1234* thread #1, queue = &apos;com.apple.main-thread&apos;, stop reason = signal SIGSTOP    fram">
+<meta name="keywords" content="Objective-C, libdispatch, 经验总结, bug&#x2F;crash">
+<meta property="og:type" content="article">
+<meta property="og:title" content="记一次crash排查—dispatch_once引起的死锁">
+<meta property="og:url" content="https://chy305chy.github.io/2019/02/27/bug排查记录—dispatch-once引起的死锁/index.html">
+<meta property="og:site_name" content="崔岚清的个人博客">
+<meta property="og:description" content="该 bug 表现为：测试环境下，启动过程中 App 卡死，不响应任何操作；真机环境下，启动后直接crash。重现 bug 后暂停程序并打印堆栈信息，符号化后的堆栈信息涉及到公司内部代码 这里就不全贴出来了，栈顶的三条记录如下： 1234* thread #1, queue = &apos;com.apple.main-thread&apos;, stop reason = signal SIGSTOP    fram">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2019-03-19T09:14:37.257Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="记一次crash排查—dispatch_once引起的死锁">
+<meta name="twitter:description" content="该 bug 表现为：测试环境下，启动过程中 App 卡死，不响应任何操作；真机环境下，启动后直接crash。重现 bug 后暂停程序并打印堆栈信息，符号化后的堆栈信息涉及到公司内部代码 这里就不全贴出来了，栈顶的三条记录如下： 1234* thread #1, queue = &apos;com.apple.main-thread&apos;, stop reason = signal SIGSTOP    fram">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://chy305chy.github.io/2019/02/27/bug排查记录—dispatch-once引起的死锁/"/>
+
+
+
+
+
+  <title>记一次crash排查—dispatch_once引起的死锁 | 崔岚清的个人博客</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">崔岚清的个人博客</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">集跬步至千里，积小流成江海</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://chy305chy.github.io/2019/02/27/bug排查记录—dispatch-once引起的死锁/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Cui Lanqing">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="崔岚清的个人博客">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">记一次crash排查—dispatch_once引起的死锁</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-02-27T11:04:26+08:00">
+                2019-02-27
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/iOS开发/" itemprop="url" rel="index">
+                    <span itemprop="name">iOS开发</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+                <a href="/2019/02/27/bug排查记录—dispatch-once引起的死锁/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count valine-comment-count" data-xid="/2019/02/27/bug排查记录—dispatch-once引起的死锁/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>该 bug 表现为：测试环境下，启动过程中 App 卡死，不响应任何操作；真机环境下，启动后直接crash。重现 bug 后暂停程序并打印堆栈信息，符号化后的堆栈信息涉及到公司内部代码 这里就不全贴出来了，栈顶的三条记录如下：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">* thread <span class="meta">#1, queue = 'com.apple.main-thread', stop reason = signal SIGSTOP</span></span><br><span class="line">    frame <span class="meta">#0: 0x000000010db481b6 libsystem_kernel.dylib`semaphore_wait_trap + 10</span></span><br><span class="line">    frame <span class="meta">#1: 0x000000010d80367f libdispatch.dylib`_dispatch_thread_event_wait_slow + 16</span></span><br><span class="line">    frame <span class="meta">#2: 0x000000010d7e98cc libdispatch.dylib`dispatch_once_f + 290</span></span><br></pre></td></tr></table></figure>
+<p>程序最终停留在 <code>semaphore_wait_trap</code>，应该是信号量等待导致了死锁，并且调用栈的信息中频繁出现 <code>dispatch_once_f</code> 、 <code>_dispatch_once [inlined]</code>等关键字，猜测应该是 <code>dispatch_once</code> 的并发执行过程中出现了循环等待进而导致死锁。</p>
+<p>有关 <code>dispatch_once</code> 导致的死锁问题，网上大多数文章介绍的情形是<strong>递归调用</strong>，比如：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">@implementation</span> <span class="title">TestObjectA</span></span></span><br><span class="line">+ (TestObjectA *)sharedInstance</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">static</span> TestObjectA *manager = <span class="literal">nil</span>;</span><br><span class="line">    <span class="keyword">static</span> <span class="built_in">dispatch_once_t</span> token;</span><br><span class="line">    <span class="built_in">dispatch_once</span>(&amp;token, ^&#123;</span><br><span class="line">        manager = [[TestObjectA alloc] init];</span><br><span class="line">    &#125;);</span><br><span class="line">    <span class="keyword">return</span> manager;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">- (<span class="keyword">instancetype</span>)init</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">self</span> = [<span class="keyword">super</span> init];</span><br><span class="line">    <span class="keyword">if</span> (<span class="keyword">self</span>) &#123;</span><br><span class="line">        [TestObjectB sharedInstance];</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">self</span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">@end</span></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">@implementation</span> <span class="title">TestObjectB</span></span></span><br><span class="line">+ (TestObjectB *)sharedInstance</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">static</span> TestObjectB *manager = <span class="literal">nil</span>;</span><br><span class="line">    <span class="keyword">static</span> <span class="built_in">dispatch_once_t</span> token;</span><br><span class="line">    <span class="built_in">dispatch_once</span>(&amp;token, ^&#123;</span><br><span class="line">        manager = [[TestObjectB alloc] init];</span><br><span class="line">    &#125;);</span><br><span class="line">    <span class="keyword">return</span> manager;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">- (<span class="keyword">instancetype</span>)init</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">self</span> = [<span class="keyword">super</span> init];</span><br><span class="line">    <span class="keyword">if</span> (<span class="keyword">self</span>) &#123;</span><br><span class="line">        [TestObjectA sharedInstance];</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">self</span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">@end</span></span><br></pre></td></tr></table></figure>
+<p>上述程序运行后必然会出现死锁，而且堆栈信息与该bug的堆栈类似：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">* thread <span class="meta">#1, queue = 'com.apple.main-thread', stop reason = EXC_BAD_INSTRUCTION (code=EXC_I386_INVOP, subcode=0x0)</span></span><br><span class="line">    frame <span class="meta">#0: libdispatch.dylib`_dispatch_once_wait + 101</span></span><br><span class="line">  * frame <span class="meta">#1: Test`+[TestObjectA sharedInstance] [inlined] </span></span><br><span class="line">    frame <span class="meta">#2: Test`+[TestObjectA sharedInstance](self=TestObjectA, _cmd=<span class="meta-string">"sharedInstance"</span>) at ViewController.m:104</span></span><br><span class="line">    frame <span class="meta">#3: Test`-[TestObjectB init](self=0x000060000146ca20, _cmd=<span class="meta-string">"init"</span>) at ViewController.m:140</span></span><br><span class="line">    ...</span><br></pre></td></tr></table></figure>
+<p>但是，我翻遍了与crash堆栈信息有关的所有代码，没有发现递归调用的情形，那么问题出在哪里呢？</p>
+<h4 id="死锁分析"><a href="#死锁分析" class="headerlink" title="死锁分析"></a>死锁分析</h4><p>前文对 <code>dispatch_once</code> 的原理进行过分析，<code>dispatch_once</code> 的执行中可能遇到以下三种情形：</p>
+<ol>
+<li>第一次执行，执行block，执行完成后置predicate标记</li>
+<li>非第一次执行，而步骤1尚未执行完毕，此时线程需要等待步骤1完成，步骤1完成后依次唤醒等待的线程</li>
+<li>非第一次执行，且步骤1已经执行完成，线程跳过block继续执行后续任务</li>
+</ol>
+<p>从这三种情形来看，只有情形2出现了线程等待，也只有这里才有可能导致死锁。<br>继续分析代码，发现了如下调用逻辑：</p>
+<figure class="highlight obj-c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">子线程（负责网络请求）：sharedInstance -&gt; <span class="built_in">dispatch_once</span> -&gt; init -&gt; <span class="built_in">dispatch_sync</span>(dispatch_get_main_queue(), ... )</span><br><span class="line"></span><br><span class="line">Main Thread: sharedInstance -&gt; <span class="built_in">dispatch_once</span></span><br></pre></td></tr></table></figure>
+<p>看到这里，死锁的原因已经很清晰了：<br>首先，子线程先调用 <code>sharedInstance</code> 首先进入 <code>dispatch_once</code> ，然后调用某个类的 <code>init</code> 方法，而在该类的 <code>init</code> 方法中，由于业务需要，某些初始化操作必须放到主线程中同步执行（<code>init</code>代码中会判断当前线程是否主线程，如果不是，就使用 <code>dispatch_sync</code> 将操作同步到主线程中执行）。<br>如果子线程 <code>dispatch_once</code> 的block任务未执行完毕时，主线程进入了 <code>dispatch_once</code> ，由于子线程阻塞地向主线程中提交任务，而此时主线程又在等待子线程的 <code>dispatch_once</code> 任务完成，如此一来就出现了循环等待情形，两个线程的任务都无法结束，信号量无法释放，出现死锁。</p>
+<p>死锁原因找到了，那么解决办法也很简单：</p>
+<ol>
+<li>将 <code>dispatch_sync</code> 改为 <code>dispatch_async</code></li>
+<li>将网络请求也放到主线程中执行（根据代码逻辑，只有在子线程中才会调用 <code>dispatch_sync</code>）</li>
+<li>将 Main Thread 的 <code>sharedInstance</code> 调用时机提前，放到子线程相应 <code>sharedInstance</code> 的调用之前，确保在主线程中调用 <code>init</code>，避免调用 <code>dispatch_sync</code>。</li>
+</ol>
+<p>由于 <code>init</code> 方法属于大众点评定位框架 <code>Meridian</code>，我们使用pod引入，直接修改为 <code>dispatch_async</code> 并不是一个好办法；而且，如果把网络请求和数据处理都放到主线程中执行，势必会加重主线程的负担，可能导致卡顿等问题；因此，我们最终选择了方法3，修改之后经过测试验证，死锁情况没有再出现。</p>
+<h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><p>引起死锁的原因有很多，但是只要围绕死锁产生的四个条件：互斥、请求与保持、不剥夺、循环等待 进行分析，找出根本原因就很简单了，而且，在写代码的时候也要牢记上述四个条件，最大可能地避免、预防和解除死锁。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Objective-C-libdispatch-经验总结-bug-crash/" rel="tag"># Objective-C, libdispatch, 经验总结, bug/crash</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/01/31/iOS-Runtime随笔——Message-Forward与多继承/" rel="next" title="iOS-Runtime随笔——Message Forward与应用">
+                <i class="fa fa-chevron-left"></i> iOS-Runtime随笔——Message Forward与应用
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+    <div class="comments" id="comments">
+    </div>
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Cui Lanqing</p>
+              <p class="site-description motion-element" itemprop="description">一枚有梦想的程序猿</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives">
+              
+                  <span class="site-state-item-count">15</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">13</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#死锁分析"><span class="nav-number">1.</span> <span class="nav-text">死锁分析</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#总结"><span class="nav-number">2.</span> <span class="nav-text">总结</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+<div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Cui Lanqing</span>
+
+  
+</div>
+
+
+  <div class="powered-by">
+    <i class="fa fa-user-md"></i><span id="busuanzi_container_site_uv">
+    本站访客数:<span id="busuanzi_value_site_uv"></span>
+  </span>
+  </div>
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Pisces</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  <script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+  <script src="//unpkg.com/valine/dist/Valine.min.js"></script>
+  
+  <script type="text/javascript">
+    var GUEST = ['nick','mail','link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item=>{
+      return GUEST.indexOf(item)>-1;
+    });
+    new Valine({
+        el: '#comments' ,
+        verify: false,
+        notify: false,
+        appId: 'WCdYKBzVHyUAmYLBFSD0S1EM-gzGzoHsz',
+        appKey: 'TeFriUwpGPw3n0GaJ9PSdzEh',
+        placeholder: 'Just go go',
+        avatar:'mm',
+        guest_info:guest,
+        pageSize:'10' || 10,
+    });
+  </script>
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
